@@ -1,0 +1,32 @@
+Hats are the commands at the top of a script.
+
+Possible hats:
+Start
+Receive "message"
+Trap
+Label my_label
+
+Start:
+The most basic one.
+A script with 'Start' at the top will begin execution the frame the object is spawned in.
+
+Receive "message":
+Starts a script when a specified message (which must be a string, in quotes) is received from another sprite.
+When this script starts, the local variable "_message_data" contains any data sent with the message.
+For more, see Events.
+
+Trap:
+That is, trap error. This is how error handling is currently done.
+If an error occurs in any of the object's scripts, that script will terminate and all scripts
+starting with "Trap" will begin execution.
+In the new script, a local variable called "_error_type" will be created, storing the type of error.
+
+Label my_label:
+This often serves as a hat but doesn't have to- it can be in the middle of scripts too.
+It saves a location (line number) in the code in an attribute (my_label is the variable name in this case)
+Execution can be started at the label with "fork" or "jump" (see Branching)
+
+End:
+Ends execution of a script.
+I generally put one at the end of every script just in case.
+Even if it's not necessary, like after an infinite loop, ha.

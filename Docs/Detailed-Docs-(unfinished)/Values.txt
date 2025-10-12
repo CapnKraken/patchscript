@@ -1,0 +1,70 @@
+In these docs, <> represents a value which can be any of the following:
+-a variable name
+    make sure the variable exists and is accessible from where you're referencing it.
+-a raw value
+    integer or float literal
+        Ex: 103.5
+    string literal (in "quotes")
+        Ex: "Hello, World!"
+    list literal: list of values surrounded by brackets [] and separated by commas.
+        Ex: [0, 1, 2, "Hello", 1.5, ["nested", "list"]]
+-an expression
+
+Embedded Expressions and Function Calls
+-anything surrounded by parenthases () will be evaluated as an expression.
+    Ex: (5 * my_variable // 3)
+-anything surrounded by curly braces {} will be evaluated as a function call.
+    Ex: {random 0 5}
+    -Any command that places a value in the '_return' local variable can be put in curly braces
+     and inserted into lines in place of a value.
+
+You can embed expressions and function calls anywhere where a value is needed in a line.
+(See Functions)
+
+-expression operators:
+    Unary Operators (only take one operand and goes before them):
+        not (any type)*: turns logical 'false' to logical 'true' and vice versa
+            for numbers, a value of 0 is logically false, everything else is true
+            for strings/lists, empty string/list is false
+            for gameobjects, root object is false
+        len (string and list): compute the length of the string or list
+        lower/upper (string): convert the string to lowercase/uppercase
+        sin/cos/tan/arcsin/arccos/arctan (int or float): compute the specified trig function
+        round (int/float) : rounds a number to an integer
+        str/int/float (any type): casts the operand to the requested type, if possible.
+
+        *note: gameobjects are represented by their identification numbers and are effectively integers here.
+
+    Binary Operators (take two operands, one on either side of the operator)
+        (any type):
+        and: results in 1 if both operands are logically true, 0 otherwise
+        or: results in 1 if either operand is logically true, 0 otherwise
+        ==/!=: results in 1 if the operands are equal/not equal, 0 otherwise
+
+        (string and list):
+        `: array subscript operator. First operand must be a string or list, second operand must be an int.
+
+        (string, int, and float):
+        +: adds or concatenates the operands.
+        </<=: results in 1 if the first operand is less than/less than or equal to the second, 0 otherwise
+        >/>=: results in 1 if the first operand is greater than/greater than or equal to the second, 0 otherwise
+
+        (int and float):
+        -: subtract the operands
+        *: multiply the operands
+        /: divide the operands
+        //: divide using integer division
+        ^: calcualte the first operand to the power of the second
+
+        (int only):
+        %: results in the remainder of a division between the operands
+        &: bitwise AND the two operands
+        |: bitwise OR
+        ~: bitwise exclusive OR
+    
+    Example usage of expressions and embedded function calls:
+    setvar a {random 0 10}
+    setvar b {random 90 100}
+    setvar c ("Answer: " + (a * b))
+
+    (See example projects for more uses)

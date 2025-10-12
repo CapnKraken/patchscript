@@ -1,0 +1,12 @@
+# Basically just a hitbox that an enemy sees and says "Oh! I should move this direction!"
+
+START
+    setposition xpos ypos
+    setattribute tag "enemy director"
+
+    setcollider 32 32
+END
+
+RECEIVE "next level"
+    delete
+END

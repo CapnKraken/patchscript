@@ -1,0 +1,30 @@
+#=
+Display what mode the editor is in, along with the level number you're working on.
+=#
+
+Include std/colors
+
+START
+    setcolor_def color=COL_BLACK
+    setattribute _draw_font "marker"
+    setattribute _draw_stroke 30
+    setattribute _draw_centered 0
+
+    def update_ui
+        # Draw the mode on the top-left of the screen, and the level number on the right.
+        setposition 10 10
+        draw _self clear
+        draw _self text editor_mode
+
+        setposition 360 10
+        draw _self text ("L: " + editor_level_number)
+    return
+END
+
+RECEIVE "editor ui update"
+    update_ui
+END
+
+RECEIVE "scene change"
+    delete
+END

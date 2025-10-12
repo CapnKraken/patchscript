@@ -1,0 +1,57 @@
+#=
+File to be included in other enemies' scripts.
+Contains basic functions and behavior used by all enemies.
+=#
+
+Start
+    def enemy_kill
+        # Send a message with the enemy coordinates as data.
+        broadcast "enemy explosion" [_x, _y]
+        instance "explosion" explosion_layer _ _x=_x _y=_y type="large"
+
+        set total_score += score_value
+        broadcast "score update"
+
+        sound "explode"
+	
+		# Enemy count is used to control when new enemies are spawned.
+        set enemy_count --
+        delete
+    return
+
+    # Used when determining bullet angle.
+	# Both enemy types shoot directly at the player sometimes.
+    def angle_to_player
+        setvar _return {angle _x _y {getattribute player_object _x} {getattribute player_object _y}}
+    return
+
+    set enemy_count ++
+
+    setattribute tag "enemy"
+
+    setattribute health 1
+    setattribute score_value 100
+
+	#= 
+	The actual collider on the enemy is its damagebox for the player's bullet.
+	To damage the player, each enemy creates a child object with a dedicated damage box.
+	This is helpful because now we can make hitboxes and hurtboxes be different sizes for the same object (and have different tags).
+    =#
+	def make_hurtbox w h
+        instance "enemies/hurtbox" _self _ width=w height=h
+    return
+End
+
+# Comes from the player bullet.
+Receive "hit"
+    set health --
+
+	# All player bullets only do 1 damage but I check <= just to be safe.
+    If health <= 0
+        enemy_kill
+    Endif
+End
+
+Receive "game over"
+    delete
+End

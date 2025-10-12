@@ -1,0 +1,43 @@
+#=
+Define standard colors.
+For this game we really just need white, black, and red.
+=#
+
+START
+    # White
+    setglob COL_WHITE [255, 255, 255]
+
+    # Black
+    setglob COL_BLACK [0, 0, 0]
+
+    # Transparent (just black but with an alpha of 0)
+    setglob COL_TRANSPARENT [0, 0, 0, 0]
+
+    # Red (slightly off red, matching the enemies)
+    setglob COL_RED [233, 67, 53]
+
+    def setcolor r g b a
+        setattribute _draw_r r
+        setattribute _draw_g g
+        setattribute _draw_b b
+        setattribute _draw_a a
+    return
+
+    def setcolor_def color
+        setvar length (len color)
+        IF length == 4
+            getindex color 0 _draw_r
+            getindex color 1 _draw_g
+            getindex color 2 _draw_b
+            getindex color 3 _draw_a
+        ELIF length == 3
+            getindex color 0 _draw_r
+            getindex color 1 _draw_g
+            getindex color 2 _draw_b
+            setattribute _draw_a -1
+        ELSE
+            log "Color must have either 3 or 4 components. Given:" color
+            setcolor r=0 g=0 b=0 a=-1
+        ENDIF
+    return
+END

@@ -1,0 +1,12 @@
+# Simple animated spider legs.
+
+Start
+    setsprite "spider_legs"
+
+    Loop 
+        wait 5
+
+        # They animate by flipping horizontally every 5 frames.
+        setattribute _fliph (not _fliph)
+    Endloop
+End

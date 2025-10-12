@@ -1,0 +1,38 @@
+#=
+Simple sprite to draw the UI on its own layer.
+All we really need for this is the death count.
+=#
+
+Include std/colors
+
+START
+    setglob player_deaths 0
+
+    def update_ui
+        draw _self clear
+
+        # Situated at the top-left of the screen.
+        setposition 8 8
+    
+        setcolor_def color=COL_RED
+        setattribute _draw_font "marker"
+        setattribute _draw_stroke 16
+        setattribute _draw_centered 0
+    
+        draw _self "death_count"
+        setposition 30 9
+        draw _self text player_deaths
+    return
+
+    update_ui
+END
+
+RECEIVE "player death"
+    set player_deaths ++
+    update_ui
+END
+
+RECEIVE "scene change"
+    delete
+END
+

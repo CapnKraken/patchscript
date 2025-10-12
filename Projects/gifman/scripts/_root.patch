@@ -1,0 +1,255 @@
+Include std/colors
+
+START
+    # Setup system stuff
+    configure caption "Gifman the Stupendous"
+    configure hide_mouse 1
+    configure busy_wait 0
+    configure apply
+
+    # Load the game graphics
+        setvar sprts "gifman_graphics.png"
+
+        # Flag
+        load sprite "green_flag" sprts 160 0 32 48
+        load sprite "grey_flag" sprts 160 48 32 48
+
+        # Coin
+        load sprite "coin1" sprts 0 48 16 24
+        load sprite "coin2" sprts 16 48 16 24
+        load sprite "coincenter" sprts 0 72 8 16
+
+        # Mean Ball
+        load sprite "meanface1" sprts 240 8 16 16
+        load sprite "meanface2" sprts 256 8 16 16
+        load sprite "bigball" sprts 192 0 48 48
+
+        # Slightly less mean ball
+        load sprite "smallball" sprts 240 24 24 24
+
+        # Spikes
+        load sprite "largespike" sprts 128 48 32 32
+        load sprite "smallspike1" sprts 128 80 16 16
+        load sprite "smallspike2" sprts 144 80 16 16
+
+        # Player
+        load sprite "player_idle" sprts 32 0 32 48
+        load sprite "player_run1" sprts 64 48 32 48
+        load sprite "player_run2" sprts 32 48 32 48
+        load sprite "player_run3" sprts 96 48 32 48
+        load sprite "player_jump" sprts 96 0 32 48
+        load sprite "player_fall" sprts 128 0 32 48
+
+        # UI
+        load sprite "death_count" sprts 0 88 16 16 
+        load sprite "title" sprts 0 200 320 160
+        load font "marker" "Mogra.ttf"
+    
+    # Load the controls (from controls file)
+        fork load_controls_thread
+
+    # Draw the checkered png background
+        setattribute _draw_centered 0
+        load sprite "png_transparent" "gifman_graphics.png" 0 0 32 48
+
+        setvar stamp_times_h (_screen_resolution`0 // 32 + 1)
+        setvar stamp_times_v (_screen_resolution`1 // 48 + 1)
+        setvar x 0
+        setvar y 0
+        REPEAT stamp_times_v
+            REPEAT stamp_times_h
+                draw _self "png_transparent"
+                set x += 32
+                setposition x y
+            ENDREPEAT
+            set y += 48
+            setvar x 0
+            setposition x y
+        ENDREPEAT
+
+        setposition 0 0
+
+    # Load the sound effects
+        load sound "whoosh" "whoosh.ogg"
+        load sound "ting" "ting.ogg"
+        load sound "pop" "pop.ogg"
+
+    fork set_music_sfx_config
+
+    # Define main loop function, which is used in all three scenes.
+    # This function creates an infinite loop, so code beneath its call is unreachable.
+    setglob is_fullscreen 0
+    def pause_fs_loop is_title
+        # Loop to control fullscreen and quitting.
+        LOOP
+            wait 1
+            getkey PAUSE_INPUT pause_pressed
+            getkey FULLSCREEN_INPUT fullscreen_pressed
+
+            IF pause_pressed == 2
+                IF is_title == 1
+                    # If it's the title scene, pressing the pause key quits the game.
+                    stopall
+                ELIF _paused == 0
+                    # Otherwise it spawns in a pause menu, which pauses the game.
+                    music pause
+                    setattribute pause_menu {instance "titlescreen/menu" pause_parent mode="main" _ignore_pause=1}
+                ENDIF
+            ENDIF
+
+            IF fullscreen_pressed == 2
+                # Simple fullscreen toggle, defaulting to the f11 key.
+                IF is_fullscreen == 0
+                    setglob is_fullscreen 1
+                ELSE
+                    setglob is_fullscreen 0
+                ENDIF
+
+                configure fullscreen is_fullscreen
+                configure apply
+            ENDIF
+        ENDLOOP
+    return
+
+    # Put these right below your RECEIVE "scene change" hats, for different per-scene behavior.
+    def scene_guard s
+        # s is a scene name (string)
+        IF _scene != s
+            # End the script if it's not the scene you want.
+            END
+        ENDIF
+        
+        # Stop all other scripts.
+        # If you want to manage your scripts manually, remove this I guess.
+        stopscripts
+    return
+
+    # Initial scene is the title screen. The other two are the editor and gameplay scenes.
+    setglob _scene "Title"
+    broadcast "scene change"
+END
+
+LABEL set_music_sfx_config
+    # Set the music volume from the config file
+    load file "\config.txt" config_data
+
+    IF not config_data
+        save file "\config.txt" ["music_volume: 50", "sound_volume: 100"]
+        fork set_music_sfx_config
+        END
+    ENDIF
+
+    string split (config_data`0) " " mus_data
+    string split (config_data`1) " " sfx_data
+
+    setglob _music_vol (float mus_data`1)
+    setglob _sfx_vol (float sfx_data`1)
+END
+
+LABEL load_controls_thread
+    load file "\controls.txt" controls
+    def load_control index
+        setvar _return ({string split (controls`index) " "}`1)
+    return
+
+    IF len controls < 8
+        save file "\controls.txt" ["left: left", "right: right", "jump: z", "navigate_up: up", "navigate_down: down", "pause: escape", "fullscreen: f11", "select: z"]
+        fork load_controls_thread
+        END
+    ENDIF
+    
+    setglob LEFT_INPUT {load_control index=0}
+    setglob RIGHT_INPUT {load_control index=1}
+    setglob JUMP_INPUT {load_control index=2}
+    setglob UI_UP_INPUT {load_control index=3}
+    setglob UI_DOWN_INPUT {load_control index=4}
+    setglob PAUSE_INPUT {load_control index=5}
+    setglob FULLSCREEN_INPUT {load_control index=6}
+    setglob UI_SELECT_INPUT {load_control index=7}
+END
+
+# Title Scene
+RECEIVE "scene change"
+    # Cancel the music when switching scenes.
+    music "silence" 0
+
+    scene_guard s="Title"
+
+    # This is sort of lazy and silly but those are my personality traits.
+    # On both other scenes, the root lies at 0,0 (top left).
+    # On the title I had it set to the center of the screen, so the title logo would be centered by default :P
+    setposition 240 180
+
+    instance "titlescreen/title_image" _self _
+    instance "titlescreen/menu" _self _ mode="main"
+    
+    pause_fs_loop is_title=1
+END
+
+# Editor Scene
+RECEIVE "scene change"
+    scene_guard s="Editor"
+    setposition 0 0
+
+    # The editor has its own root object, more or less.
+    instance "editor/editor" _self _
+
+    instance "container" _self pause_parent centered=1 _ignore_pause=1
+
+    pause_fs_loop is_title=0
+END
+
+# Game Scene
+RECEIVE "scene change"
+    scene_guard s="Game"
+
+    setposition 0 0
+
+    # Initiate the bleeps and bloops.
+    music "gifman_tune.ogg" 0
+
+    instance "level_loader" _self _
+
+    # Parent for player.
+    setglob player_parent 0
+    instance "container" _self player_parent centered=1
+
+    setglob player_obj 0
+    instance "player_controller" player_parent player_obj 
+
+    instance "container" _self pause_parent centered=1 _ignore_pause=1
+
+    instance "ui" _self _
+
+    pause_fs_loop is_title=0
+END
+
+# The 'menu x' messages are sent from the main title menu.
+# The 'pause menu x' messages are sent from the pause menu, in game and editor scenes. 
+
+RECEIVE "menu quit"
+    stopall
+END
+
+RECEIVE "menu editor"
+    setglob _scene "Editor"
+    broadcast "scene change"
+END
+
+RECEIVE "menu start"
+    setglob _scene "Game"
+    broadcast "scene change"
+END
+
+RECEIVE "pause menu resume"
+    # Pause menu deletes itself upon receiving this message.
+    unicast pause_menu "scene change"
+    music resume
+    setglob _paused 0
+END
+
+RECEIVE "pause menu quit"
+    setglob _paused 0
+    setglob _scene "Title"
+    broadcast "scene change"
+END

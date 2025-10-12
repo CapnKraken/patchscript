@@ -1,0 +1,27 @@
+The editor was just there so I could make the levels quickly.
+It's not a super usable tool.
+
+However, if you want to use it, this is how:
+
+Up/Down arrows: select a level (number at top right)
+
+1: Save a file called "ln.txt" with n=level number (This will overwrite anything already there so be careful)
+2: Load the level represented by the level number (if it exists)
+
+Q: Eraser (click an item to delete it)
+W: Platform (click twice to draw a platform)
+E: Player Spawn Point (there has to be one of these, and there can only be one)
+R: Goal Flag (like the spawnpoint, there can only be one)
+T: Coin (collect these to unlock the goal flag)
+Y: Large Enemy (static, or made to move using an enemy director object)
+U: Small Enemy (stays still until you get close to it, then moves towards you)
+I: Large Spike (simple spike obstacle)
+O: Small Spike (smaller spike obstacle)
+
+Left/Right arrows: rotate the spike objects by 90 degrees
+
+P: Enemy Director (direct the motion of the large enemies)
+	This one deserves some explanation. If a large enemy is touching an enemy director when it spawns in,
+	It will move in the opposite direction of the collision until it touches another enemy director.
+	Then, it will turn 180 degrees, ping-ponging between the two director objects.
+	This object is invisible during gameplay.

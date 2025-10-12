@@ -1,0 +1,23 @@
+#=
+Empty object, just for containing other objects.
+Can be centered or not.
+=#
+
+START
+    IF centered != 1
+        END
+    ENDIF
+
+    # Center the container if desired.
+    setposition (_screen_resolution`0 // 2) (_screen_resolution`1 // 2)
+END
+
+RECEIVE "scene change"
+    delete
+END
+
+RECEIVE "next level"
+    # Clear the canvas when switching levels.
+    # This is because platforms are drawn on level_parent's (a container) canvas.
+    draw _self clear
+END

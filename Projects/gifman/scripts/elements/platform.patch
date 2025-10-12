@@ -1,0 +1,39 @@
+#=
+A collidable platform.
+=#
+
+Include std/colors
+
+START
+    # Setup tag for collision
+    setattribute tag "platform"
+
+    setposition x y
+    setvar size [(int w), (int h)]
+
+    # Draw the platform rectangles.
+
+    # Filled color
+    setcolor_def color=COL_WHITE
+    setattribute _draw_stroke 0
+    setattribute _draw_centered 0
+
+    getindex size 0 rectw
+    getindex size 1 recth
+    draw level_parent rect rectw recth
+
+    # Outline
+    setattribute _draw_stroke 4
+    setcolor_def color=COL_BLACK
+    draw level_parent rect rectw recth
+
+    # Set up the collider and move to the proper position.
+    setcollider rectw recth
+    set _x += (rectw // 2)
+    set _y += (recth // 2)
+    setposition _x _y
+END
+
+RECEIVE "next level"
+    delete
+END

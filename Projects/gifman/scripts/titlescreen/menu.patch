@@ -1,0 +1,166 @@
+#=
+Display some menu options and select with UI_UP_INPUT and UI_DOWN_INPUT
+=#
+
+Include std/colors
+
+START
+    IF mode == "sprite_anim"
+        END
+    ENDIF
+
+    setattribute _draw_font "marker"
+    setattribute _draw_centered 1
+
+    setattribute label_size 50
+    setattribute option_size 30
+
+    setattribute option_color COL_BLACK
+
+    # There are only two types of menus so I choose between them with a simple 'IF' statement.
+    # Values for each are hardcoded. Well. As hardcoded as a patch script counts as.
+    IF _scene == "Title"
+        setattribute num_options 3
+
+        setattribute show_bg 0
+
+        # first one is for the menu label
+        setattribute xps [0, 0, 0, 0]
+        
+        setattribute yps [0, 40, 80, 120]
+
+        # The first label is the main menu label which appears above it.
+        # Title screen doesn't have one so I set it to the empty string.
+        setattribute option_labels ["", "Begin", "Editor", "Quit"]
+
+        # This is the message to broadcast when the option is selected.
+        setattribute messages ["menu start", "menu editor", "menu quit"]
+
+    ELIF _scene == "Game" or _scene == "Editor"
+        # Pause menu
+
+        setattribute num_options 2
+
+        # This menu also sets the _paused variable when it spawns in, pausing the game.
+        setglob _paused 1
+
+        setattribute show_bg 1
+
+        setattribute xps [0, 0, 0]
+        
+        setattribute yps [-100, -20, 20]
+
+        setattribute option_labels ["Game Paused", "Resume", "Quit"]
+
+        setattribute messages ["pause menu resume", "pause menu quit"]
+    ENDIF
+
+    def _draw_menu
+        IF show_bg == 1
+            # Apply a translucent filter in front of the scene you're pausing.
+            # Draws the focus to the pause menu without outright hiding the game scene.
+
+            copy COL_WHITE my_color
+
+            # If you did want to hide the game scene when paused, just remove the following line, which adds transparency to the color.
+            append my_color 150
+
+            setcolor_def color=my_color
+            draw _self rect 480 360
+        ENDIF
+
+        setattribute _draw_stroke label_size
+        setposition (xps`0) (yps`0)
+
+        # Draw the main label text.
+        setcolor_def color=option_color
+        draw _self text (option_labels`0)
+
+        # Draw the menu option text.
+        setattribute _draw_stroke option_size
+        setvar i 1
+        REPEAT num_options
+            setposition (xps`i) (yps`i)
+            draw _self text (option_labels`i)
+            set i ++
+        ENDREPEAT
+
+        setposition 0 0
+    return
+
+    # Instance the little walking Gifman who serves as the select cursor.
+    setattribute sprite_anim {instance "titlescreen/menu" _self mode="sprite_anim" _ignore_pause=1}
+
+    _draw_menu
+
+    setattribute current_position 1
+    unicast sprite_anim "update position" [(xps`current_position), (yps`current_position)]
+
+    LOOP
+        wait 1
+        getkey UI_UP_INPUT up_pressed
+        getkey UI_DOWN_INPUT down_pressed
+        getkey UI_SELECT_INPUT select_pressed
+
+        # Default behavior is to not update the position of the cursor.
+        # Only want to do that when it's supposed to change.
+        setvar update_animation 0
+
+        # Allow the cursor to move up if it's not at the top already.
+        IF up_pressed == 2 and current_position > 1
+            set current_position --
+            setvar update_animation 1
+        ENDIF
+
+        # Allow the cursor to move down if it's not at the bottom already.
+        IF down_pressed == 2 and current_position < num_options
+            set current_position ++
+            setvar update_animation 1
+        ENDIF
+
+        # If the cursor position just changed set its position.
+        IF update_animation == 1
+            unicast sprite_anim "update position" [(xps`current_position), (yps`current_position)]
+        ENDIF
+
+        # Broadcast the proper message when the select key is pressed.
+        IF select_pressed == 2
+            broadcast (messages`(current_position - 1))
+        ENDIF
+    ENDLOOP
+END
+
+START
+    IF mode != "sprite_anim"
+        END
+    ENDIF
+
+    setattribute current_position 1
+
+    # We'll cycle through these sprites as the run animation for the cursor.
+    setattribute cursor_frames ["player_run1", "player_run2", "player_run1", "player_run3"]
+
+    setvar current_frame 0
+
+    # Continually increment the animation frame and display the proper sprite.
+    LOOP
+        wait 5
+        setsprite (cursor_frames`current_frame)
+        setvar current_frame ((current_frame + 1 ) % len cursor_frames)
+    ENDLOOP
+END
+
+RECEIVE "update position"
+    setposition (_message_data`0 - 100) (_message_data`1)
+END
+
+RECEIVE "scene change"
+    delete
+END
+
+RECEIVE "pause menu resume"
+    # We have to manually delete the cursor object. 
+    # Its parent isn't the pause menu and it won't automatically delete when the menu does.
+    unicast sprite_anim "scene change"
+END
+

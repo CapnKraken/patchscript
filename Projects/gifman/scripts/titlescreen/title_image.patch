@@ -1,0 +1,26 @@
+START
+    setsprite "title"
+    setposition 0 -100
+
+    setvar x _x
+    setvar y _y
+
+    #append _x 500 600 700
+    setvar sinecurve 0
+
+    LOOP
+        wait 1
+
+        # Super simple up and down sine wave animation for the main menu logo.
+
+        set sinecurve += 1.5
+        
+        # Huzzah! Postfix evaluation works!
+        eval new_ypos sinecurve sin 20 * y +
+        setposition x new_ypos
+    ENDLOOP
+END
+
+RECEIVE "scene change"
+    delete
+END

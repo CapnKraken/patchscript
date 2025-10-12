@@ -1,0 +1,336 @@
+#=
+This object is used to draw the UI/heads-up display.
+It is responsible for drawing the title screen text during the title scene,
+    and the score/lives display during gameplay.
+It also displays the "Wave Finished" text at the end of a wave.
+=#
+
+Include basics
+
+# TITLE TEXT
+START
+    setglob rad_deg (180 / 3.14159265)
+    setattribute _hide_errors 1
+
+    IF mode != "title"
+        END
+    ENDIF
+
+    setglob hard_mode 0
+
+    # Define colors to be used on the title screen.
+        setglob COL_RED [255, 100, 100]
+
+        setglob COL_ORANGE 255
+        append COL_ORANGE 127 100
+
+        setglob COL_GREEN 100
+        append COL_GREEN 255 100
+
+        setglob COL_BLUE 100
+        append COL_BLUE 100 255
+
+        setglob COL_MAGENTA 255
+        append COL_MAGENTA 100 255
+
+        # Transparent color, used for erasing.
+        setglob COL_ERASE 0
+        append COL_ERASE 0 0 0
+
+        setglob COL_GRAY 200
+        append COL_GRAY 200 200
+
+        setglob COL_BLACK 0
+        append COL_BLACK 0 0
+
+    # Initialize col_list to be empty, and then fill it with the colors we just defined.
+    setvar col_list []
+    REPEAT 3
+        append col_list COL_MAGENTA COL_RED COL_ORANGE COL_GREEN COL_BLUE 
+    ENDREPEAT
+
+    IF {random 1 5} == 5
+        # Not to be confused with the sci-fi spoof
+        setvar text_list "S"
+        append text_list "P" "A" "C" "E" " " "B" "A" "L" "L" "S"
+    ELSE
+        # You can switch these out if you like.
+        setvar text_list "A"
+        append text_list "S" "T" "E" "R" "O" "I" "D" "S" "!"
+    ENDIF
+
+    
+
+    # Render the title text.
+    # y = y coordinate
+    # off = space between the letters
+    def render_title_text y off
+        setattribute _draw_centered 0
+        setattribute _draw_stroke 150
+
+        setvar tlen (len text_list)
+        getindex _screen_resolution 0 xres
+
+        # erase the previous text
+        setposition 0 0
+        setcolor_def color=COL_ERASE
+        draw _self rect xres 200
+
+        # 'eval' evaluates an expression in reverse-Polish notation
+        eval xoff xres tlen 0.5 - off * - 2 //
+
+        setposition xoff y
+
+        # Title text is rendered by iterating over text_list and drawing each letter in the appropriate color.
+        setvar i 0
+        REPEAT tlen
+            setcolor_def color=(col_list`i)
+
+            If text_list`i == "I"
+                draw _self text "Ξ"
+                draw _self text "T"
+            ELSE
+                draw _self text (text_list`i)
+            ENDIF
+            move 0 off
+
+            set i ++
+        ENDREPEAT
+    return
+
+    # Set up the draw attributes for the menu options.
+    getindex _screen_resolution 0 screen_width
+    setvar screen_center (screen_width // 2)
+    setattribute _draw_centered 1
+    setattribute _draw_stroke 100
+    setcolor_def color=COL_GRAY
+
+    # Draw the menu options to the screen.
+    setposition screen_center 400
+    draw _self text "Press [Z] to begin"
+    setposition screen_center 500
+    draw _self text "Press [ESC] to quit"
+
+    # Load the data file and draw the high score text.
+    setattribute _draw_stroke 80
+    load file "asteroids_score.dat" loaded_data
+    IF loaded_data
+        setposition screen_center 720
+        draw _self text ("High Score: " + loaded_data`0)
+    ENDIF
+
+    load file "hard_score.dat" loaded_data
+    IF loaded_data
+        setposition screen_center 800
+        draw _self text ("Hard Mode Score: " + loaded_data`0)
+    ENDIF
+
+    # title animation loop (with start game input)
+    setvar title_text_offset_timer 0
+
+    LOOP
+        getkey "z" start_pressed
+        getkey "q" hard_mode_start_pressed
+
+        IF start_pressed > 0 or hard_mode_start_pressed > 0
+            IF hard_mode_start_pressed > 0
+                # Hard mode is a secret. Shhhh!
+                setglob hard_mode 1
+            ENDIF
+            setglob _scene "Game"
+            broadcast "scene change" _scene
+            END
+        ENDIF
+
+        # Animate the title text by applying a sine curve to the space between the letters
+        set title_text_offset_timer ++
+        render_title_text y=100 off=(sin title_text_offset_timer * rad_deg * 0.7 + 80)
+        wait 1
+    ENDLOOP
+END
+
+# HUD
+START
+    IF mode != "hud"
+        END
+    ENDIF
+
+    # Load the high score at the beginning of the game.
+    setattribute hi_score 0
+    IF not hard_mode
+        load file "asteroids_score.dat" loaded_data
+    ELSE
+        load file "hard_score.dat" loaded_data
+    ENDIF
+
+    IF loaded_data
+        setattribute hi_score (int loaded_data`0)
+    ENDIF
+
+    # Initialize the score and player lives.
+    setattribute tag "ui"
+    setglob score 0
+    setattribute player_life_count 3
+
+    load sound "1up" "boink.ogg" 100
+
+    # Initialize the score threshold at which the player will earn an extra life.
+    setattribute next_1up 5000
+
+    # Draw a thin border around the edge of the screen.
+    def _draw_border
+        setposition 0 0
+        setattribute _draw_stroke 4
+
+        draw _self rect (_screen_resolution`0) (_screen_resolution`1)
+        return
+    
+    # Update the UI to display the specified score and lives.
+    def update_ui score lives
+        setcolor_def color=COL_GRAY
+        setattribute _draw_centered 0
+        
+        draw _self clear
+
+        setposition 20 20
+        setattribute _draw_stroke 80
+        draw _self text score
+
+        setposition 35 100
+
+        # The lives indicator is a re-use of the player ship sprite.
+        setsprite "player_ship"
+        setattribute _rotation -90
+        setattribute _width 150
+        setattribute _height 150
+        updatesprite
+        
+        REPEAT lives
+            stamp _self
+            move 0 40
+        ENDREPEAT
+        
+        setsprite "blank"
+        _draw_border
+    return
+ 
+    # Main loop for the UI
+    LOOP
+        wait 1
+
+        # This function includes drawing the border, score, and lives.
+        update_ui score=score lives=player_life_count
+
+        # draw fps
+        setposition 20 900
+        setattribute _draw_stroke 80
+
+        draw _self text ("FPS: " + _real_fps * 100 // 100)
+
+        #=
+        # Remove the block comment to have it display the shot limit and count as well. I used this for debugging.
+        setposition 20 850
+        draw _self text ("Shot limit: " + shot_limit + " Shot count: " + shot_count)
+        =#
+    ENDLOOP
+END
+
+# HUD
+RECEIVE "score update"
+    IF mode != "hud"
+        END
+    ENDIF
+
+    set score += _message_data
+
+    # Give the player an extra life when they reach a certain score
+    IF score >= next_1up
+        set player_life_count ++
+        set shot_limit ++
+
+        # Every time a life is earned, the 1up threshold is doubled.
+        set next_1up *= 2
+
+        # The sound isn't really a 1up sound, so I play it 5 times to make it more interesting.
+        REPEAT 5
+            sound "1up"
+            wait 5
+        ENDREPEAT
+    ENDIF
+END
+
+# HUD
+RECEIVE "player hit"
+    IF mode != "hud"
+        END
+    ENDIF
+
+    IF player_life_count >= 0
+        set player_life_count --
+        IF not hard_mode
+            set shot_limit ++
+        ENDIF
+    ENDIF
+    
+    IF player_life_count < 0
+        broadcast "game over"
+    ENDIF
+END
+
+# HUD
+RECEIVE "game over"
+    IF mode != "hud"
+        delete
+    ENDIF
+
+    # Stop the other scripts in the object and update the score one last time.
+    stopscripts
+    update_ui score=score lives=0
+
+    # Update high score in the data file if applicable.
+    log score hi_score hard_mode
+    IF score > hi_score
+        IF hard_mode
+            save file "hard_score.dat" score
+        ELSE
+            save file "asteroids_score.dat" score
+        ENDIF
+    ENDIF
+
+    setposition 720 480
+    setattribute _draw_stroke 200
+    setattribute _draw_centered 1
+    draw _self text "Game Over"
+END
+
+# WAVE TEXT
+# display text between waves
+START
+    IF mode != "wave text"
+        END
+    ENDIF
+
+    # Set up the attributes for the wave text.
+    setattribute _draw_centered 1
+    setattribute _draw_stroke 150
+    setcolor_def color=COL_GRAY
+    setposition 720 480
+END
+
+# WAVE TEXT
+RECEIVE "wave finished"
+    IF mode != "wave text"
+        END
+    ENDIF
+
+    # Give the player a little "wave clear" type message
+    string join my_text "Wave " _message_data " Complete"
+    draw _self text my_text
+    wait 200
+    draw _self clear
+END
+
+RECEIVE "Scene Change"
+    # No form of the UI object is persistent across scenes.
+    delete
+END

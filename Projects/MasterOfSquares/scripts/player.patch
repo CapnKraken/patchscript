@@ -1,0 +1,177 @@
+#=
+Our little purple square boy.
+=#
+
+Start
+    load sprite "player" "player1.png"
+    setsprite "player"
+    setmask
+End
+
+Start
+    setposition -436 292
+    setattribute _fliph 0
+
+    # X and Y velocity
+    setattribute xv 0
+    setattribute yv 0
+
+    setvar jump_force -5.5
+
+    setattribute current_inputs []
+
+    # Main player scripts
+    Loop
+        wait 1
+
+        If not is_replaying
+            # Gather inputs
+            getkey "up" up_pressed
+            getkey "left" left_pressed
+            getkey "right" right_pressed
+
+            append current_inputs up_pressed left_pressed right_pressed
+        Else
+            If len current_inputs >= 3
+                remove current_inputs 0 up_pressed
+                remove current_inputs 0 left_pressed
+                remove current_inputs 0 right_pressed
+                setvar up_pressed (int up_pressed)
+                setvar left_pressed (int left_pressed)
+                setvar right_pressed (int right_pressed)
+
+                #log (len current_inputs) up_pressed left_pressed right_pressed
+            Endif
+        Endif
+
+        # Perform physics
+        set yv += 0.1
+
+        If right_pressed > 0
+            set xv += 0.6
+            setattribute _fliph 0
+        Endif
+        If left_pressed > 0
+            set xv -= 0.6
+            setattribute _fliph 1
+        Endif
+
+        set xv *= 0.9
+        translate xv 0
+
+        #  updates the render_rect position. This is used in maskcollide
+        
+        If {maskcollide current_platforms}
+            translate 0 (-yv)
+            
+            If {maskcollide current_platforms}
+                translate (-xv) yv
+            Endif
+            If up_pressed > 0
+                # Wall-jump
+				sound "jump"
+                setattribute yv jump_force
+                If xv > 0
+                    setattribute xv -8
+                Else
+                    setattribute xv 8
+                Endif
+            Endif
+        Endif
+
+        translate 0 yv
+        
+        If {maskcollide current_platforms}
+			If up_pressed > 0 and yv >= 0
+				sound "jump"
+			Endif
+		
+            translate 0 (-yv)
+            setattribute yv 0
+            If up_pressed > 0
+                # Regular jump
+                setattribute yv jump_force
+            Endif
+        Endif
+
+        # Hazard test
+        
+        If {maskcollide current_hazards}
+            setvar shift 0
+            Repeat 60
+                set shift -= (255/60)
+                colorshift 0 0 0 shift
+                
+                wait 1
+            Endrepeat
+
+            If not is_replaying
+                setattribute current_inputs []
+            Endif
+
+            setposition -436 292
+            setattribute xv 0
+            setattribute yv 0
+            set player_deaths ++
+            broadcast "ui update"
+            setattribute _fliph 0
+            colorshift 0 0 0 0
+            
+        Endif
+
+        # End of level check
+        If _y < -350
+            setvar shift 0
+            Repeat 60
+                set shift -= (255/60)
+                colorshift 0 0 0 shift
+                
+                wait 1
+            Endrepeat
+
+            broadcast "next level"
+            wait 1
+        Endif
+
+
+        # Clamp position
+        If _x > 480
+            setposition 480 _y
+        Elif _x < -480
+            setposition -480 _y
+        Endif
+
+        If _y > 360
+            setposition _x 360
+        Elif _y < -360 
+            setposition _x -360
+        Endif
+    Endloop
+End
+
+Receive "next level"
+    colorshift 0 0 0 0
+    setposition -436 292
+    setattribute _fliph 0
+
+    
+    If is_replaying
+        setvar filename ("r" + (current_level))
+        setattribute current_inputs []
+        load file filename current_inputs
+
+        If not current_inputs
+            setglob is_replaying 0
+        Endif
+    Elif current_level > 1
+        setvar filename ("r" + (current_level - 1))
+        save file filename current_inputs
+        setattribute current_inputs []
+    Else
+        setattribute current_inputs []
+    Endif
+
+    # X and Y velocity
+    setattribute xv 0
+    setattribute yv 0
+End

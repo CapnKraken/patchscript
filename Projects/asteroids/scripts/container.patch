@@ -1,0 +1,29 @@
+#=
+Empty game object. Used to contain others.
+Also used as a canvas to draw particles onto.
+=#
+
+START
+    IF mode == "particles"
+
+        # Go to the center of the screen.
+        # Instead of calculating it we just go to the world position.
+        getattribute world _x x
+        getattribute world _y y
+        setposition x y
+
+        LOOP
+            wait 1 
+            # glob particle_explosion_count
+            IF particle_explosion_count > 0
+                # Only clear the canvas if we have to. Otherwise it wastes draw calls.
+                draw _self clear
+            ENDIF
+            
+        ENDLOOP
+    ENDIF
+END
+
+RECEIVE "scene change"
+    delete
+END

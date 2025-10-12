@@ -1,0 +1,90 @@
+#=
+Angry hazard ball.
+If it's touching an enemy director object when it spawns in, it'll move away from that until it hits
+    another enemy director, then move back.
+
+Sprite consists of two simple randomly animated portions, the outer ball and the face.
+=#
+
+Include std/collision
+Include std/basics
+
+START
+    IF mode == "face"
+        END
+    ENDIF
+
+    setsprite "bigball"
+
+    setattribute tag "hazard"
+    setcollider 30 30
+
+    setposition xpos ypos
+
+    instance "elements/mean_ball" _self _ mode="face"
+
+    wait 1
+
+    # If it's touching an enemy director (which is invisible to the player), start the motion routine.
+    # Otherwise, ignore this.
+    IF {test_tag_collision t="enemy director"} != -1
+        setattribute initial_enemy_director _return
+        fork enemy_motion
+    ENDIF
+
+    setvar mintime 10
+    setvar maxtime 20
+    LOOP
+        random 0 1 _fliph
+        random 0 1 _flipv
+        
+        wait {random mintime maxtime}
+    ENDLOOP
+END
+
+START
+    IF mode != "face"
+        END
+    ENDIF
+
+    setsprite "meanface1"
+
+    setvar mintime 20
+    setvar maxtime 30
+    LOOP
+        wait {random mintime maxtime}
+        IF _sprite == "meanface1"
+            setsprite "meanface2"
+        ELSE
+            setsprite "meanface1"
+        ENDIF
+    ENDLOOP
+END
+
+LABEL enemy_motion
+    # Place the enemy director on the opposite side of where you want the enemy to go.
+    
+    setvar direction (180 + {angle_obj o1=_self o2=initial_enemy_director})
+
+    setvar speed 1
+
+    # Move until it's not touching the first enemy director anymore.
+    WHILE {collide _self initial_enemy_director}
+        wait 1
+        move direction speed
+    ENDWHILE
+
+    # Move until it hits another enemy director, then turn 180 degrees and head back.
+    LOOP
+        wait 1
+        move direction speed
+        
+        IF {test_tag_collision t="enemy director"} != -1
+            set direction += 180
+        ENDIF
+    ENDLOOP
+END
+
+RECEIVE "next level"
+    delete
+END

@@ -1,0 +1,32 @@
+#=
+Display level number, player deaths, and time.
+=#
+
+Start
+    load font "font1" "Objective.ttf"
+    setattribute _draw_font "font1"
+    setattribute _draw_stroke 32
+    setattribute _draw_r 15
+    setattribute _draw_g 15
+    setattribute _draw_b 15
+    setattribute _draw_centered 0
+
+    unicast _self "ui update"
+End
+
+Receive "ui update"
+    setvar levtext ("Level: " + current_level)
+    setvar deathtext (" Deaths: " + player_deaths)
+    setvar timetext (" Time: " + elapsed_time)
+
+    If is_replaying
+        string join totaltext "Replay " levtext
+    Else
+        string join totaltext levtext deathtext timetext
+    Endif
+
+    setposition (_screen_resolution`0 // 2 - (len totaltext* 13) - 5) -350
+
+    draw _self clear
+    draw _self text totaltext
+End

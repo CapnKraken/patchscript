@@ -1,0 +1,94 @@
+#=
+Parent object for pretty much everything in the game except UI.
+Its motion will create the 'camera motion' for the game.
+=#
+
+Start
+    # Create some layers for the world (to organize draw and update order)
+        setglob bg_layer {instance "container" _self}
+        setglob wall_layer {instance "container" _self}
+        setglob player_layer {instance "container" _self}
+        setglob explosion_layer {instance "container" _self}
+        setglob enemy_bullet_layer {instance "container" _self}
+
+        # I layer the player above the walls, that way the walls will update before it.
+        # Otherwise the collisions won't work properly. Need the walls to stop moving before the player starts testing collisions.
+
+    # Create objects to display the background.
+        setvar b "background"
+        instance b bg_layer _x=240 _y=180
+        instance b bg_layer _x=-240 _y=180
+        instance b bg_layer _x=240 _y=-180
+        instance b bg_layer _x=-240 _y=-180
+    
+    ## Create some walls.
+        # The numbers in these expressions are based on the screen resolution and wall size.
+        # The walls are 24x24 pixels, and the screen resolution is 480x360 pixels.
+        # The entire game field is twice the screen width and height.
+
+        setvar i (-480 + 12)
+        Repeat (480*2/24)
+            instance "wall" wall_layer _ _x=i _y=(-360+12)
+            set i += 24
+        Endrepeat
+
+        setvar i (-480 + 12)
+        Repeat (480*2/24)
+            instance "wall" wall_layer _ _x=i _y=(360-12)
+            set i += 24
+        Endrepeat
+
+        setvar i (-360 + 12 + 24)
+        Repeat (360*2/24 - 2)
+            instance "wall" wall_layer _ _x=(-480+12) _y=i
+            set i += 24
+        Endrepeat
+
+        setvar i (-360 + 12 + 24)
+        Repeat (360*2/24 - 2)
+            instance "wall" wall_layer _ _x=(480-12) _y=i
+            set i += 24
+        Endrepeat
+		#-
+    
+    # Instantiate the player object as a child of the player layer and store its ID in a global variable
+        setglob player_object {instance "player/player_controller" player_layer}
+
+    # Enemy spawner
+        setglob enemy_spawner {instance "enemies/enemy_spawner" _self}
+
+    # Camera control loop.
+    Loop
+        wait 1
+
+        # Center the camera on the player
+        setposition (-{getattribute player_object _x}) (-{getattribute player_object _y}) 
+
+        setvar new_x (int _x)
+        setvar new_y (int _y)
+
+        setvar x_bound 240
+        setvar y_bound 180
+
+        # Clamp the camera position so you can't see beyond the walls.
+        If _x < -x_bound
+            setvar new_x (-x_bound)
+        Elif _x > x_bound
+            setvar new_x x_bound
+        Endif
+
+        If _y < -y_bound
+            setvar new_y (-y_bound)
+        Elif _y > y_bound
+            setvar new_y y_bound
+        Endif
+
+        setposition new_x new_y
+    Endloop
+End
+
+# When the game resets, we just delete the world and make a new one.
+# (the new one is made in the _root object)
+Receive "reset game"
+    delete
+End

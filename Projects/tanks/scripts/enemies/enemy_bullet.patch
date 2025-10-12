@@ -1,0 +1,51 @@
+#=
+The thing no shooting (or related) game is complete without.
+=#
+
+Start
+    # Seal bullet if player is too close to where it spawns.
+    If {distance _x _y {getattribute player_object _x} {getattribute player_object _y}} < 70
+        delete
+    Endif
+
+    If type == "main"
+        setsprite "enemy_bullet"
+        setattribute tag "hazard"
+    Elif type == "spider"
+        setsprite "spider_bullet"
+        setattribute tag "sbullet"
+    Endif
+
+    set _width *= 2
+    set _height *= 2
+    setcollider 4 4
+
+    If type == "spider"
+        setattribute speed 7
+        setattribute time_to_live 30
+    Else
+        # 5 seems like a good speed. Pretty fast but not too much.
+        setattribute speed 5
+        setattribute time_to_live 120
+    Endif
+
+    Repeat time_to_live
+        wait 1
+        move direction speed
+
+        If type == "main"
+            set _rotation += 90
+        Endif
+
+        # If a spider bullet hits the player, spawn a web.
+        If type == "spider" and {collide _self player_object}
+            instance "enemies/spider_web" wall_layer _ _x=_x _y=_y
+            delete
+        Endif
+    Endrepeat
+
+    If type == "spider"
+        instance "enemies/spider_web" wall_layer _ _x=_x _y=_y
+    Endif
+    delete
+End

@@ -1,0 +1,117 @@
+#=
+The main parent for the player object.
+It has no sprite but is the parent for the whole player object.
+=#
+
+Include std_collision
+
+Start
+    # Set up variables for movement speed
+    setattribute speed 3
+    setattribute diag_normalized (speed/1.41421)
+
+    # pointing to the right at the start.
+    setattribute direction 0
+    setattribute is_moving 0
+
+    # I'm using an attribute called 'tag' for collision.
+    # To avoid errors I'll need to assign a tag to every object with a collider.
+	# See std_collision.patch for why this is.
+    setattribute tag "player"
+    setcollider 16 16
+
+    # Instantiate graphics and turret
+        instance "player/player_graphics" _self _ mode="base"
+        instance "player/player_turret" _self _
+    
+    Loop
+        wait 1
+
+        # Gather inputs
+        getkey "left" left_input
+        getkey "right" right_input
+        getkey "up" up_input
+        getkey "down" down_input
+
+        # Respond to inputs
+        setvar hmotion 0
+        setvar vmotion 0
+
+        If left_input > 0
+            set hmotion --
+        Endif
+        If right_input > 0
+            set hmotion ++
+        Endif
+        If up_input > 0
+            set vmotion --
+        Endif
+        If down_input > 0
+            set vmotion ++
+        Endif
+
+		# I'm sure there's a more math-y way to do this but I couldn't be bothered.
+		# And this works just fine :)
+		# Basically just take the horizontal motion and vertical motion and determine what direction the tank should face.
+        setattribute is_moving 0
+        If not (hmotion == 0 and vmotion == 0)
+            If hmotion == 1
+                If vmotion == 1
+                    setattribute direction 45
+                Elif vmotion == -1
+                    setattribute direction -45
+                Else
+                    setattribute direction 0
+                Endif
+            Elif hmotion == -1
+                If vmotion == 1
+                    setattribute direction 135
+                Elif vmotion == -1
+                    setattribute direction -135
+                Else
+                    setattribute direction 180
+                Endif
+            Else 
+                If vmotion == 1
+                    setattribute direction 90
+                Else
+                    setattribute direction -90
+                Endif 
+            Endif
+
+            setattribute is_moving 1
+        Endif
+
+        # Apply the motion
+        If is_moving
+            If hmotion == 0 or vmotion == 0
+                setvar current_speed speed
+            Else
+                setvar current_speed diag_normalized
+            Endif
+
+            # Spider webs slow you down.
+            If {test_tag_collision t="web"} != -1
+                set current_speed /= 2
+            Endif
+
+            If hmotion == 0 or vmotion == 0
+                move_and_collide x=(hmotion * current_speed) y=(vmotion * current_speed) t="wall"
+            Else
+                move_and_slide x=(hmotion * current_speed) y=(vmotion * current_speed) t="wall"
+            Endif
+        Endif
+
+		# Blow up if you get hit by an enemy or bullet.
+        If {test_tag_collision t="hazard"} != -1
+            sound "player_explode"
+            instance "explosion" explosion_layer _ _x=_x _y=_y type="large"
+            broadcast "game over"
+        Endif
+    Endloop
+End
+
+Receive "game over"
+	# We don't 'delete' the object here because the world is still looking for it to determine camera position.
+    stopscripts
+End

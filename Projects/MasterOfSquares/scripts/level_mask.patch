@@ -1,0 +1,19 @@
+#=
+Hazards and platforms are stored in these.
+=#
+
+Start 
+    setvar i 1
+    Repeat 6
+        load sprite (mode + i) (mode + "/" + i + ".png")
+        set i ++
+    Endrepeat
+End 
+
+Receive "next level"
+    set level ++
+    setsprite (mode+level)
+    If mode != "Original_Backdrops"
+        setmask
+    Endif
+End 

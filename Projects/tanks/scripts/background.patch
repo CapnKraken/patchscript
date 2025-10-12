@@ -1,0 +1,10 @@
+#=
+Just a basic object for the background.
+It has no behavior, other than to set its graphic.
+=#
+
+Start
+	# The 'background' sprite was created by the graphics_loader object on game start.
+	# It consists of randomly placed scenery.
+    setsprite "background"
+End

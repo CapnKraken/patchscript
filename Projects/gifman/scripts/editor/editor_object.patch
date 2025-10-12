@@ -1,0 +1,286 @@
+#=
+Each item you placed in the editor.
+There's one corresponding to each editor mode except for "Erase".
+
+Some special types include the win flag and the player, of which there can only be one of at a time.
+Additionally, the platform requires two clicks to place, one for each corner of its rectangle.
+=#
+
+Include std/colors
+
+START
+    # is_dead is 1 when the object is deleted. It signals the save function to ignore the object.
+    setattribute is_dead 0
+
+    def _draw_platform
+        draw _self clear
+
+        # Draw the platform rectangles.
+
+        # Background rectangle.
+        setcolor_def color=COL_WHITE
+        setattribute _draw_a 150
+        setattribute _draw_stroke 0
+        setattribute _draw_centered 0
+        draw _self rect width height
+
+        # Outline.
+        setattribute _draw_stroke 4
+        setcolor_def color=COL_BLACK
+        setattribute _draw_a 150
+        draw _self rect width height
+    return
+
+    # Turn the object's data into a string to be saved to the level file.
+    def serialize
+        IF type == "Platform"
+            setvar write_x xmin
+            setvar write_y ymin
+            setvar write_w width
+            setvar write_h height
+            setvar write_t "p"
+        ELSE
+            setvar write_x _x
+            setvar write_y _y
+
+            IF type == "Spawn Point"
+                # These need to be adjusted since the player's parent is centered.
+                set write_x -= 240
+                set write_y -= 180
+            ENDIF
+
+            # Spikes need rotation recorded as well.
+            IF type == "Small Spike" or type == "Large Spike"
+                setvar write_r _rotation
+            ENDIF
+        ENDIF
+
+        # Build the string and store it in the "serialized" attribute.
+            setattribute serialized (write_t + " " + write_x + " " + write_y)
+
+            IF type == "Platform"
+                string join serialized serialized " " write_w " " write_h
+            ENDIF
+
+            # See if the second word is "Spike"
+            string split type " " typesplit
+            IF len typesplit == 2
+                # Can't join these by 'and' because the second condition is dependent on the first 
+                # and both operands are evaluated before the operator.
+                IF typesplit`1 == "Spike"
+                    string join serialized serialized " " write_r
+                ENDIF
+            ENDIF
+    return
+
+    # Unpack a serialized string and set up the editor object based on it.
+    def deserialize s_str
+        string split s_str " " split_string
+        set t (split_string`0)
+        set write_t t
+
+        # Convert the item designations from the file into the editor object types.
+        IF t == "player"
+            setattribute type "Spawn Point"
+            setsprite "player_idle"
+        ELIF t == "p"
+            setattribute type "Platform"
+        ELIF t == "f"
+            setattribute type "Flag"
+            setsprite "green_flag"
+        ELIF t == "c"
+            setattribute type "Coin"
+            setsprite "coin1"
+        ELIF t == "be"
+            setattribute type "Large Enemy"
+            setsprite "bigball"
+        ELIF t == "se"
+            setsprite "smallball"
+            setattribute type "Small Enemy"
+        ELIF t == "ls"
+            setsprite "largespike"
+            setattribute type "Large Spike"
+        ELIF t == "s"
+            setsprite "smallspike1"
+            setattribute type "Small Spike"
+        ELIF t == "ed"
+            setsprite "enemy_director"
+            setattribute type "Enemy Director"
+        ENDIF
+
+        # Obtain the coordinates and convert them to integers.
+        set x (int split_string`1)
+        set y (int split_string`2)
+
+        IF type != "Platform"
+
+            # Non-platforms take their width and height from their sprite.
+            # This makes erasing them uncomplicated.
+            set width _width
+            set height _height
+
+            IF type == "Spawn Point"
+                set x += 240
+                set y += 180
+            ELIF type == "Large Spike" or type == "Small Spike"
+                setattribute _rotation (int split_string`3)
+                
+            ENDIF
+        ELSE
+            # Platforms store data for width and height.
+
+            set width (int split_string`3)
+            set height (int split_string`4)
+            setposition x y
+            set xmin x
+            set ymin y
+
+            _draw_platform
+
+            # Offset the position so the collider is in the right spot.
+            set x += (width // 2)
+            set y += (height // 2)     
+        ENDIF
+
+        setposition x y
+        setcollider width height
+    return
+
+    IF type == "serialized"
+        # When loading a file, all objects start with the "serialized" type.
+        deserialize s_str=serialized
+        setattribute is_placed 1
+    ELSE
+        # These objects are placed by the user in the editor.
+        setattribute is_placed 1
+        IF type == "Platform"
+            setattribute is_placed 0
+            setattribute width 8
+            setattribute height 8
+
+            set center_x _x
+            set center_y _y
+
+            # Simple function to return the minimum of two values.
+            def min a b
+                set _return ((a < b) * a + (a >= b) * b)
+            return
+
+            # Platform needs two clicks to be placed, one for each corner.
+            # This while loop handles the placement of the second corner.
+            WHILE is_placed == 0
+                wait 1
+
+                getattribute editor_cursor_obj _x cx
+                getattribute editor_cursor_obj _y cy
+
+                set xp center_x
+                set yp center_y
+
+                set width (abs (cx - xp))
+                set height (abs (cy - yp))
+
+                # Set the top-left corner to the minimum of the coordinates.
+                set xmin {min a=xp b=cx}
+                set ymin {min a=yp b=cy}
+                setposition xmin ymin
+
+                _draw_platform
+            ENDWHILE
+
+            # Set up the collider and move to the proper position.
+            setcollider width height
+            setposition (_x + width // 2) (_y + height // 2)
+
+            # While you're placing the second corner, the editor is prevented from placing any more platforms.
+            setglob editor_can_place_platform 1
+        ELSE
+            # The non-platform items are really simple to set up.
+
+            set e editor_mode
+            IF e == "Spawn Point"
+                setsprite "player_idle"
+                set write_t "player"
+            ELIF e == "Flag"
+                setsprite "green_flag"
+                set write_t "f"
+            ELIF e == "Coin"
+                setsprite "coin1"
+                set write_t "c"
+            ELIF e == "Large Enemy"
+                setsprite "bigball"
+                set write_t "be"
+            ELIF e == "Small Enemy"
+                setsprite "smallball"
+                set write_t "se"
+            ELIF e == "Large Spike"
+                setsprite "largespike"
+                setattribute _rotation editor_spike_direction
+                
+                set write_t "ls"
+            ELIF e == "Small Spike"
+                setsprite "smallspike1"
+                setattribute _rotation editor_spike_direction
+                
+                set write_t "s"
+            ELIF e == "Enemy Director"
+                set write_t "ed"
+                setsprite "enemy_director"
+                setattribute type "Enemy Director"
+            ENDIF
+
+            set width _width
+            set height _height
+            setcollider width height
+        ENDIF
+    ENDIF
+
+    # The editor responds to this message by adding the object to the level element list.
+    broadcast "editor add element" _self
+
+    # Prepare to be saved to the file, whenever that happens.
+    serialize
+END
+
+RECEIVE "editor mode change"
+    IF type == "Platform" and is_placed == 0
+        # If you're in the middle of placing a platform and switch modes, delete the platform.
+        setglob editor_can_place_platform 1
+        delete
+    ENDIF
+END
+
+RECEIVE "editor mouse down"
+    IF editor_mode == "Erase"
+        # Get the mouse position and check for a point collision.
+        getattribute editor_cursor_obj _X cx
+        getattribute editor_cursor_obj _y cy
+
+        
+        IF {collide _self point cx cy}
+            # Instead of deleting the object, I mark it as dead and then move it offscreen.
+
+            setattribute is_dead 1
+            setposition -1000 -1000
+            draw _self clear
+        ENDIF
+    ELIF editor_mode == "Flag" or editor_mode == "Spawn Point"
+        # There can only be one player spawnpoint and win flag.
+        # So, delete the first one if you place a second one.
+
+        IF type == editor_mode
+            setattribute is_dead 1
+            setposition -1000 -1000
+        ENDIF
+    ENDIF
+
+    IF type == "Platform" and is_placed == 0
+        # Placing the second corner of the platform.
+        setattribute is_placed 1
+    ENDIF
+END
+
+RECEIVE "editor delete all"
+    delete
+END
+

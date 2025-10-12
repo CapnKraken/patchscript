@@ -1,0 +1,44 @@
+#=
+Player touches this to win the level.
+If there are coins in the stage, the flag will be grey and unable to be touched.
+If the player has collected all of the coins, the flag will be green and interactable.
+=#
+
+# for test_tag_collision
+Include std/collision
+
+START
+    setattribute tag "flag"
+
+    def update_flag t
+        IF t == 0
+            setsprite "green_flag"
+            setcollider 32 48
+        ELSE
+            setsprite "grey_flag"
+            setcollider 0 0
+        ENDIF
+    return
+
+    setposition xpos ypos
+
+    update_flag t=total_coins
+
+    # Signal the level transition if the player touches it while it's interactable..
+    LOOP
+        wait 1
+        IF {collide _self player_obj}
+            setattribute player_obj is_respawning 1
+            broadcast "next level"
+            delete
+        ENDIF
+    ENDLOOP
+END
+
+RECEIVE "collect coin"
+    update_flag t=total_coins
+END
+
+RECEIVE "next level"
+    delete
+END

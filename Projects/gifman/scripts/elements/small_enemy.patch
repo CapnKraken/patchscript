@@ -1,0 +1,39 @@
+# A lil' enemy. How cute! It wants a hug.
+# By hug, I mean it tries to move towards you. Probably should avoid it.
+
+Include std/basics
+
+START
+    setsprite "smallball"
+
+    setattribute tag "hazard"
+    setcollider 10 10
+
+    setposition xpos ypos
+
+    LOOP
+        wait 1
+
+        # Turn to face the player.
+            setvar newfliph 1
+            IF _global_x < {getattribute player_obj _global_x}
+                setvar newfliph 0
+            ENDIF
+
+            # Only update the sprite if the orientation has changed.
+            IF _fliph != newfliph
+                setattribute _fliph newfliph
+                
+            ENDIF
+
+        # Go in for the hug if the player's close enough.
+        IF {distance_obj o1=_self o2=player_obj} < 100
+            angle_obj o1=_self o2=player_obj
+            move _return 0.5
+        ENDIF
+    ENDLOOP
+END
+
+RECEIVE "next level"
+    delete
+END

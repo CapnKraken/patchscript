@@ -1,0 +1,11 @@
+#=
+Just a wall that blocks the player's movement.
+=#
+
+Start
+    setsprite "wall"
+	
+	# Because of the way I'm doing collisions, all objects with colliders need a 'tag' attribute.
+    setattribute tag "wall"
+    setcollider 24 24
+End

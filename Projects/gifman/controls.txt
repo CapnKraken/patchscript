@@ -1,0 +1,8 @@
+left: left
+right: right
+jump: z
+navigate_up: up
+navigate_down: down
+pause: escape
+fullscreen: f11
+select: z

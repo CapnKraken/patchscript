@@ -1,0 +1,67 @@
+#=
+Standard functions as regards collision testing.
+The file contains three functions:
+	test_tag_collision, which allows an object to test for collided objects with a specific tag attribute.
+    move_and_collide, which moves an object and resets its position if it collided with a tag.
+	move_and_slide, which is like move_and_collide but it checks the cardinal directions independently.
+=#
+
+Start
+    # Tests if the object is colliding with any object with a specified tag attribute.
+    def test_tag_collision t
+        setvar collisions {collide _self all}
+        setvar cl (len collisions)
+
+        # no collision by default
+        setvar _return -1
+
+        If cl == 0
+            jump ttag_endloop
+        Endif
+
+        setvar i 0
+        Repeat cl
+            getindex collisions i o
+			
+			# This is why colliding objects need 'tag' attributes if you use this function.
+			# It collides with all objects and then tests their tags. If there's no tag, error.
+            getattribute o tag o_tag
+            If o_tag == t
+                # Collision, tags match. Return the collided object's ID.
+                setvar _return o
+                jump ttag_endloop
+            Endif
+
+            set i ++
+        Endrepeat
+        
+        Label ttag_endloop
+    return
+
+    # Move a specified amount, and if you collide with the specified tag, reset position.
+    def move_and_collide x y t
+        setvar init_x _x
+        setvar init_y _y
+
+        translate x y
+
+        If {test_tag_collision t=t} != -1
+            setposition init_x init_y
+        Endif
+    return
+
+    # Same as move and collide but it does the directions independently so you can slide along walls.
+    def move_and_slide x y t 
+
+        translate x 0
+        If {test_tag_collision t=t} != -1
+            translate (-x) 0
+        Endif
+
+        translate 0 y 
+        If {test_tag_collision t=t} != -1
+            translate 0 (-y)
+        Endif
+    return
+
+END

@@ -1,0 +1,65 @@
+#=
+It's a coin.
+You collect it.
+You have to collect all coins on screen in order to grab the flag.
+
+This object also handles the total coins global variable.
+=#
+
+START
+    IF mode == "center"
+        END
+    ENDIF
+
+    setattribute tag "coin"
+    setcollider 30 30
+
+    set total_coins ++
+
+    setposition xpos ypos
+
+    # Spawn in the static portion of the sprite.
+    instance "elements/coin" _self _ mode="center"
+
+    setvar mintime 5
+    setvar maxtime 10
+    LOOP
+        # Randomize the outer coin graphic to make it wiggle.
+        IF {random 0 1} == 1
+            setsprite "coin1"
+        ELSE
+            setsprite "coin2"
+        ENDIF
+
+        random 0 1 _fliph
+        random 0 1 _flipv
+        
+
+        wait {random mintime maxtime}
+    ENDLOOP
+END
+
+# Message sent by the player upon collision.
+RECEIVE "collect"
+    IF mode == "center"
+        END
+    ENDIF
+
+    set total_coins --
+    broadcast "collect coin"
+    sound "ting"
+    delete
+END
+
+START
+    IF mode != "center"
+        END
+    ENDIF
+
+    # "center" mode is the non-animated portion of the coin sprite.
+    setsprite "coincenter"
+END
+
+RECEIVE "next level"
+    delete
+END

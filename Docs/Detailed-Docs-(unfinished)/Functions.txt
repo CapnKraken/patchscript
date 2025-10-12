@@ -1,0 +1,28 @@
+Functions allow code reuse, same as in other languages.
+
+They always start with "def" and end with "return"
+Unlike other languages, they do not evaluate to a value, though you can make them act like it.
+
+Example:
+=====================
+def print_hi
+    log "Hi!"
+return
+
+print_hi 
+=====================
+Console output:
+Hi!
+
+You can have parameters also, as many as you want.
+In the function call, you need to do parameter=value for each.
+=====================
+def print_hi name
+    log "Hi," (name + "!")
+return
+
+print_hi name="Mark"
+=====================
+Console output:
+Hi, Mark!
+

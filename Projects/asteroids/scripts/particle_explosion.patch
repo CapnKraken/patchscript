@@ -1,0 +1,96 @@
+#=
+A rudimentary particle system object.
+Spawns an explosion of particles where it's instantiated.
+
+Attributes (which must be passed through the instance command):
+-count          :   How many particles to spawn
+-min_speed      :   
+-max_speed      :   in pixels per frame
+-min_direction  :
+-max_direction  :   in degrees, particles will spawn in an arc between min_direction and max_direction.
+-min_lifetime   :
+-max_lifetime   :   how many frames should the particles last?
+-color          :   list of 3 ints representing r, g, b.
+-particle_size  :   
+-init_x         :   The origin point of the explosion.
+-init_y
+=#
+
+Include basics
+
+START
+    # Global variable storing how many particle explosions there are currently.
+    # This allows the particle render layer (a seperate object) to only clear its canvas when
+    #   there are particle explosions to render.
+    set particle_explosion_count ++
+
+    #=
+    px: x positions
+    py: y positions
+    pd: directions
+    pl: lifetimes
+    ps: speeds
+    =#
+    # Initialize all lists to empty.
+    setvar px []
+    setvar py []
+    setvar pd []
+    setvar pl []
+    setvar ps []
+
+    # Set up initial lists
+    REPEAT count
+        append px init_x
+        append py init_y
+
+        random min_direction max_direction dir
+        random min_lifetime max_lifetime life
+        
+        setvar speed ({random min_speed max_speed} / 100)
+
+        append pd dir
+        append pl life
+        append ps speed
+    ENDREPEAT
+
+    setattribute _draw_centered 1
+    setcolor_def color=draw_color
+
+    setvar finished 0
+    WHILE finished == 0
+        setvar i 0
+
+        # Default to finished=1. But if a particle still has lifetime left, finished will be set to 0.
+        setvar finished 1
+        REPEAT count
+
+            # Decrement each lifetime.
+            setindex pl i --
+            getindex pl i life
+
+            # If the particle is alive, draw it and update its variables.
+            IF life > 0
+                setvar finished 0
+                setposition (px`i) (py`i)
+
+                # particle_layer is a global variable referring to an object whose canvas we're drawing particles on.
+                draw particle_layer ellipse particle_size particle_size
+                getindex pd i dir
+                getindex ps i speed
+                move dir speed
+                setindex px i _x
+                setindex py i _y
+            ENDIF
+        set i ++
+        ENDREPEAT
+
+        wait 1
+    ENDWHILE
+
+    set particle_explosion_count --
+    delete
+END
+
+RECEIVE "Scene Change"
+    delete
+END

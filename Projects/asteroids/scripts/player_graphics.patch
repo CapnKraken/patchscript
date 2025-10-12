@@ -1,0 +1,119 @@
+#=
+This script controls the player graphics.
+There are five of this object, each representing one portion of the player sprite.
+These are differentiated by the 'mode' attribute.
+modes:
+"player_ship"           : actual ship sprite. It's always visible.
+"center_back_booster"   : main accelerate booster
+"right_back_booster"    : booster used to turn left
+"left_back_booster"     : booster used to turn right
+"front_boosters"        : brakes
+=#
+
+Include basics
+
+START
+    setattribute tag "psprite"
+
+    # Simple function to hide the sprite if a certain key is not pressed.
+    def show_if_key k
+        setattribute hidden 1
+        getkey k key
+        IF key > 0
+            setattribute hidden 0
+        ENDIF
+        return
+    
+    # This is how large the player sprite is.
+    setattribute target_width 220
+    setattribute target_height 220
+
+    setsprite mode
+
+    #=
+        # Silly thing you can activate if you want
+        IF mode == "player_ship"
+            fork random_colors
+        ENDIF
+    =#
+
+    setvar flicker 0
+
+    LOOP
+        wait 1
+
+        setattribute hidden 0
+
+        # Determine which boosters to show/hide.
+            IF mode == "center_back_booster"
+                show_if_key k="up"
+
+            ELIF mode == "front_boosters"
+                show_if_key k="down"
+                
+            ELIF mode == "left_back_booster"
+                show_if_key k="right"
+                
+            ELIF mode == "right_back_booster"
+                show_if_key k="left"
+                
+            ENDIF
+
+        IF hidden == 1
+            setsprite "blank"
+
+            # If the sprite is hidden, we don't need to bother with the rest of the loop.
+            jump psprite_end_while_loop
+        ELSE
+            setsprite mode
+            setattribute _width target_width
+            setattribute _height target_height
+
+            # Rotate the sprite to match the main player object.
+            getattribute parent dir _rotation
+        ENDIF
+
+        # Hide sprite every third frame to create a flicker effect if the player is invulnerable.
+        IF {getattribute parent iframes} > 0
+            set flicker ++
+            IF flicker > 1
+                setsprite "blank"
+            ENDIF
+            IF flicker > 2
+                setvar flicker 0
+            ENDIF
+        ELSE
+            setvar flicker 0
+        ENDIF
+        
+        updatesprite
+
+        # parent_can_move will only be false when the player dies and the spaceship is hidden.
+        IF {getattribute parent can_move}
+            getattribute parent _x px
+            getattribute parent _y py
+            wrap_sprite px=px py=py x=_x y=_y
+        ENDIF
+        setposition 0 0
+
+        LABEL psprite_end_while_loop
+    ENDLOOP
+END
+
+RECEIVE "Scene Change"
+    delete
+END
+
+# Just testing the color shifting. Lol.
+LABEL random_colors
+    LOOP
+        wait 10
+
+        random -255 255 r
+        random -255 255 g 
+        random -255 255 b
+        colorshift r g b
+    ENDLOOP
+
+END
+

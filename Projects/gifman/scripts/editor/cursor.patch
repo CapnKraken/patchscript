@@ -1,0 +1,130 @@
+#=
+Lil' pointer for the editor.
+Also displays the object you're about to place, if applicable.
+=#
+
+Include std/colors
+
+START
+    # Make the sprite for the normal cursor.
+    # Just a little circle with an outline.
+    setcolor_def color=COL_WHITE
+    setattribute _draw_stroke 0
+    setattribute _draw_centered 0
+    draw _self ellipse 10 10
+    setattribute _draw_stroke 2
+    setcolor_def color=COL_BLACK
+    draw _self ellipse 10 10
+    load sprite "edit_cursor" _self 0 0 10 10
+    draw _self clear
+
+    # Make the sprite for the enemy director cursor.
+    # Represented by a red square.
+    copy COL_RED draw_color
+    append draw_color 150
+    setcolor_def color=draw_color
+    setattribute _draw_stroke 0
+    draw _self rect 32 32
+    load sprite "enemy_director" _self 0 0 32 32
+    draw _self clear
+
+    setsprite "edit_cursor"
+
+    setglob editor_cursor_obj _self
+
+    setattribute xoffset 0
+    setattribute yoffset 0
+
+    # Snaps the image to the mouse position, adding any offset required by the item.
+    def snap_to_cursor
+        getindex _mouse_position 0 mx
+        getindex _mouse_position 1 my
+
+        getkey "leftshift" shift_pressed
+
+        # You can hold shift to disable the grid snappage.
+        IF shift_pressed < 1
+            setvar mx ((mx + 4) // 8 * 8 )
+            setvar my ((my + 4) // 8 * 8 )
+        ENDIF
+
+        setposition (mx + xoffset) (my + yoffset)
+    return
+
+    # Main loop, handle cursor snapping and clicking.
+    LOOP
+        wait 1
+
+        snap_to_cursor
+
+        getkey "mouse_left" mouse_clicked
+        IF mouse_clicked == 2
+            setvar position [_x, _y]
+            broadcast "editor mouse down" position
+        ENDIF
+    ENDLOOP
+END
+
+RECEIVE "editor spike direction change"
+    # Only bother with direction changes for spikes.
+    IF editor_mode != "Small Spike" and editor_mode != "Large Spike"
+        END
+    ENDIF
+
+    # I previously tried to do this using trig and rounding.
+    # However, -0.00000001 // 1 apparently equals -1. 
+    # So I just did this brute-force thing instead.
+    IF editor_spike_direction == 0
+        setattribute xoffset 0
+        setattribute yoffset -1
+    ELIF editor_spike_direction == 90
+        setattribute xoffset 1
+        setattribute yoffset 0
+    ELIF editor_spike_direction == 180
+        setattribute xoffset 0
+        setattribute yoffset 1
+    ELIF editor_spike_direction == 270
+        setattribute xoffset -1
+        setattribute yoffset 0
+    ENDIF
+
+    set xoffset *= (_width // 2)
+    set yoffset *= (_width // 2)
+
+    setattribute _rotation editor_spike_direction
+    
+    snap_to_cursor
+END
+
+RECEIVE "editor mode change"
+    setattribute _rotation 0
+    setattribute xoffset 0
+    setattribute yoffset 0
+
+    # Set offsets and sprites relevant to each editor mode.
+    IF editor_mode == "Erase" or editor_mode == "Platform"
+        setsprite "edit_cursor"
+    ELIF editor_mode == "Spawn Point"
+        setsprite "player_idle"
+        setattribute yoffset -24
+    ELIF editor_mode == "Flag"
+        setsprite "green_flag"
+        setattribute yoffset -24
+    ELIF editor_mode == "Coin"
+        setsprite "coin1"
+        setattribute yoffset -4
+    ELIF editor_mode == "Large Enemy"
+        setsprite "bigball"
+    ELIF editor_mode == "Small Enemy"
+        setsprite "smallball"
+    ELIF editor_mode == "Large Spike"
+        setsprite "largespike"
+        setattribute yoffset -16
+    ELIF editor_mode == "Small Spike"
+        setsprite "smallspike1"
+        setattribute yoffset -8
+    ELIF editor_mode == "Enemy Director"
+        setsprite "enemy_director"
+    ENDIF
+    snap_to_cursor
+END

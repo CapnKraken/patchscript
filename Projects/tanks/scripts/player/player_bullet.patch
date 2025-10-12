@@ -1,0 +1,49 @@
+#=
+Shoot enemies with this.
+They'll be spawned from the player turret, fly a distance, then stop (and spawn a nice explosion animation).
+They'll also destruct if they hit a wall.
+=#
+
+Include std_collision
+
+Start
+    def delete_shot
+		# Always decrement the shot count when a bullet is deleted.
+        set tank_shot_count --
+        instance "explosion" explosion_layer _x=_x _y=_y type="small"
+        delete
+    return
+
+    setsprite "tank_bullet"
+
+	# Always increment the shot count when a bullet spawns in.
+    set tank_shot_count ++
+
+	# Bullets go ten pixels per frame for 20 frames.
+    setvar speed 10
+    setvar time 20
+
+    setcollider 8 8
+    setattribute tag "pbullet"
+
+    # Move the bullet graphic to the front of the tank barrel.
+    move _rotation 24
+
+    Repeat time
+        wait 1
+        move _rotation speed
+
+        If {test_tag_collision t="wall"} != -1
+            delete_shot
+        Endif
+
+        setvar enemy_collision {test_tag_collision t="enemy"}
+        If enemy_collision != -1
+			# Send a message to the specific enemy that was hit.
+            unicast enemy_collision "hit"
+            delete_shot
+        Endif
+    Endrepeat
+    
+    delete_shot
+End

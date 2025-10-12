@@ -1,0 +1,26 @@
+# A wee lil' spike. Still hurts though.
+
+START
+    setcollider 4 4
+    setattribute tag "hazard"
+
+    setposition xpos ypos
+
+    setvar mintime 8
+    setvar maxtime 12
+    LOOP
+        IF {random 0 1} == 0
+            setsprite "smallspike1"
+        ELSE
+            setsprite "smallspike2"
+        ENDIF
+        
+        random 0 1 _fliph
+        
+        wait {random mintime maxtime}
+    ENDLOOP
+END
+
+RECEIVE "next level"
+    delete
+END

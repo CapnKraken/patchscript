@@ -1,0 +1,42 @@
+#=
+Simple enemy.
+Just homes in on and shoots bullets at the player.
+=#
+
+Include enemies/enemy_base
+
+Start
+    setcollider 32 32
+    
+    setsprite "enemy"
+	
+	# The sprite is pretty small so I double its size here.
+    set _width *= 2
+    set _height *= 2
+
+    make_hurtbox w=18 h=18
+
+    setattribute speed 1
+
+    Loop
+        wait 1
+		
+		# angle_to_player is defined in enemies/enemy_base (included here)
+        setvar direction {angle_to_player}
+        move direction speed
+    Endloop
+End
+
+# Fire control loop.
+Start
+    Loop
+        # wait somewhere around 4 seconds before firing a bullet.
+        wait {random 200 320}
+
+		# Only fire if the enemy is in the visible screen area.
+        If {collide _self active_zone}
+            sound "enemy_shoot"
+            instance "enemies/enemy_bullet" enemy_bullet_layer _ _x=_x _y=_y direction={angle_to_player} type="main"
+        Endif
+    Endloop
+End

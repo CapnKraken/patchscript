@@ -1,0 +1,156 @@
+#=
+Loads the graphics at game start and then deletes itself.
+
+First loads the graphics for the objects,
+Then scatters some decoration around randomly and saves it as a sprite, for the background.
+
+Finally it uses Patch's drawing commands to create some explosion animations for use later.
+=#
+
+Start
+	# I save the name of the graphics file in a short variable just so I don't have to type it every time.
+    setvar g "graphics.png"
+
+    load sprite "blank" g 0 0 0 0
+
+    ## Player graphics
+        # Load the tank treads
+        setvar i 0
+        Repeat 3
+            load sprite ("tread" + i) g 0 (i*8) 32 8
+            set i ++
+        Endrepeat
+
+        # Tank body
+        load sprite "tank_body" g 0 24 32 16
+        
+        # Turret 
+        load sprite "tank_turret" g 0 40 40 24
+
+        # Player bullet
+        load sprite "tank_bullet" g 40 0 8 8
+	#-
+
+    ## Hazards
+        # Enemy bullet
+        load sprite "enemy_bullet" g 32 0 8 8
+
+        # circular enemy 
+        load sprite "enemy" g 48 0 16 16
+
+		# This sprite will also be the window icon.
+		load sprite "_icon" g 48 0 16 16
+		configure apply
+
+        ## Spider enemy
+            load sprite "spider_body" g 32 16 24 16
+            load sprite "spider_legs" g 32 8 16 8
+            load sprite "spider_bullet" g 56 24 8 8
+
+			# If you look at the sprite sheet you'll see there's only 1/4 of a spider web.
+			# You can obviously just have the whole thing in the sprite sheet, but I wanted to demonstrate sprite drawing.
+            load sprite "spider_web_quarter" g 56 16 8 8
+			
+            # Assemble the web sprite proper using sprite drawing
+			setattribute _draw_centered 0
+			setattribute _fliph 0
+			setattribute _flipv 0
+			setposition corner_x corner_y
+
+			draw _self "spider_web_quarter"
+
+			translate 8 0
+			draw _self "spider_web_quarter" 0 1 1
+
+			translate 0 8
+			# First parameter: rotation
+			# second: scale factor
+			# third, fourth: fliph, flipv 
+			draw _self "spider_web_quarter" 0 1 1 1
+
+
+			translate -8 0
+			draw _self "spider_web_quarter" 0 1 0 1
+
+			# Grab the sprite from the loader's canvas
+			load sprite "spider_web" _self 0 0 16 16
+
+			# Clear the canvas
+			draw _self clear
+		#-
+	#-
+    
+    ## Blocks and background elements
+        # Wall
+        load sprite "wall" g 40 40 24 24
+
+        setvar i 0
+        Repeat 3
+            load sprite ("decoration" + i) g (32 + 8 * i) 32 8 8
+            set i ++
+        Endrepeat
+
+		# Stamp some random background elements, then save them as a sprite
+        # set color to transparent
+        setattribute _draw_a 0
+
+        setattribute _fliph 0
+        setattribute _flipv 0
+
+        Repeat 100
+            setposition corner_x corner_y
+            translate ({random 0 59} * 8) ({random 0 44} * 8)
+            draw _self rect 8 8
+            draw _self ("decoration" + {random 0 2})
+        Endrepeat
+
+        # Not specifying coordinates loads the entire canvas
+        load sprite "background" _self
+        draw _self clear
+	#-
+    
+    # Explosions
+        # Set up a nice orange color for the explosions
+        setattribute _draw_r 255
+        setattribute _draw_g 159
+        setattribute _draw_b 33
+        setattribute _draw_a 255
+
+        # Small
+            setposition corner_x corner_y
+            draw _self ellipse 8 8
+            setattribute _draw_a 0
+
+            setvar i 0
+            Repeat 4
+                load sprite ("small_exp_" + i) _self 0 0 8 8
+                set i ++
+
+                draw _self ellipse (2*i) (2*i)
+            Endrepeat
+
+            # Clear the drawing space
+            draw _self clear
+
+        # Large
+            setattribute _draw_a 255
+            setposition (corner_x + 12) (corner_y + 12)
+            setattribute _draw_centered 1
+            draw _self ellipse 24 24
+
+            setattribute _draw_a 0
+
+            setvar i 0
+            Repeat 4
+                load sprite ("large_exp_"+i) _self 0 0 24 24
+                set i ++
+
+                draw _self ellipse (5*i) (5*i)
+            Endrepeat
+            draw _self clear
+   
+    delete
+	
+# Technically we don't need 'End' after 'delete' since delete destroys the object and stops all scripts.
+# However, I like having all my scripts end with 'End' just for safety.
+End

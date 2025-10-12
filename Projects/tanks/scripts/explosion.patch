@@ -1,0 +1,14 @@
+#=
+Explosion effects, for large and small explosions.
+Instance variables control the type. They both have the same number of animation frames.
+=#
+
+Start
+    setvar i 0
+    Repeat 4
+        setsprite (type+"_exp_"+i)
+        wait 5
+        set i ++
+    Endrepeat
+    delete
+End

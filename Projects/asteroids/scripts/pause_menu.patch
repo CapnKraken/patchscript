@@ -1,0 +1,74 @@
+#=
+Simple object which handles the pause input and displaying the pause menu.
+This game uses simple "press key to do x option" menus, but you can make real menus and interfaces of course.
+=#
+
+Include basics
+
+START
+    # Pause menu would be useless if it couldn't run its scripts when the game was paused.
+    setattribute _ignore_pause 1
+
+    # Main loop to handle inputs and responses
+    # For this game, you press 'p' to pause/resume, and 'escape' to quit from the pause menu.
+    LOOP
+        getkey "p" pause_key
+        IF pause_key == 2
+            IF _paused == 1
+                setglob _paused 0
+            ELSE
+                setglob _paused 1
+            ENDIF
+            unicast _self "pause toggle" _paused
+        ENDIF
+
+        getkey "escape" quit_key
+        IF _paused == 1
+            # Only be able to quit via 'escape' when the game is paused.
+            IF quit_key == 2
+                setglob _scene "Title"
+                broadcast "scene change" _scene
+                draw _self clear
+            ENDIF
+        ENDIF
+
+        wait 1
+    ENDLOOP
+END
+
+RECEIVE "pause toggle"
+    # Upon toggling, if the game is now paused, draw the pause menu.
+    # Otherwise, clear the object's canvas.
+    IF _message_data == 1
+
+        setposition (_screen_resolution`0 // 2) (_screen_resolution`1 // 2)
+        setattribute _draw_centered 1
+
+        setattribute _draw_stroke 0
+        setcolor_def color=COL_BLACK
+        draw _self rect 700 500
+
+        setcolor_def color=COL_GRAY
+        setattribute _draw_stroke 150
+
+        move -90 70
+        draw _self text "Game Paused"
+        setattribute _draw_stroke 80
+        move 90 70
+        draw _self text "Press [P] to resume"
+        move 90 70
+        draw _self text "Press [ESC] to quit"
+    ELSE
+        draw _self clear
+    ENDIF
+END
+
+# Once the game is over, the player can no longer pause.
+RECEIVE "game over"
+    delete
+END
+
+# This object is only relevant in the 'Game' scene, so we can delete it when the scene changes.
+RECEIVE "scene change"
+    delete
+END

@@ -1,0 +1,107 @@
+PATCHSCRIPT STRUCTURE
+
+Patch uses a "scene tree" which is constructed using scripts.
+Scenes are made up of objects, which have a parent object and 0 or more child objects.
+An object's motion will be relative to its parent.
+The root of the tree (the one object with no parent) is defined by the _root script, which must be located in <project_name>/scripts/_root.patch
+
+SCRIPTING BASICS
+
+All objects in Patchscript are defined as script files. One script file can define one object type (or class).
+It's possible to have script files which function as libraries and are included in other script files. But in general, one file per class.
+
+Scratch calls the commands which start scripts "Hats", and that's still what I call them in my head.
+All scripts start with a hat and end with "End".
+The most basic hat (which there must be at least one of, in the _root object) is "Start". 
+Scripts with "Start" at the top will run on the frame the object is instantiated.
+
+Here's an example of a simple script:
+=======================================================
+
+Start
+    # "log" is Patch's version of "print".
+    log "Hello, World!"
+End
+
+=======================================================
+Console Output:
+Hello, World!
+
+A script file can contain multiple scripts, which can all run without interfering with one another.
+=======================================================
+
+Start
+    # Comments start with '#' by the way, and must start on their own line.
+    log "First script"
+End
+
+Start
+    #=
+        multiline comments start with '#='
+        and end with:
+    =#
+    log "Second script"
+End
+
+=======================================================
+Console Output:
+First script
+Second script
+
+Script files always run in the same order: the order they appear in the file.
+
+WAIT
+
+Something that Scratch had that I really liked was the "wait x seconds" block, which allowed a script to pause execution for a time.
+Patch has its own "wait" command, but instead of seconds, it pauses the script for a specified number of frames.
+To return to the previous example:
+=======================================================
+
+Start
+    log "First script"
+    wait 1
+    log "First script, second message"
+End
+
+Start
+    log "Second script"
+End
+
+=======================================================
+Console Output:
+First script
+Second script
+First script, second message
+
+On the first frame the object exists, it starts both scripts. The first script prints its first message and then enters a waiting
+state for one frame. The second script prints its message. On the next frame, the first script is done waiting so it prints its
+other message.
+
+EVENTS
+
+The other thing from Scratch I was a fan of was events, namely "broadcasts". However, I felt their functionality was limited.
+Patchscript includes broadcasts (send event to all objects) as well as unicasts (send event to one specified object).
+Broadcasts can also carry data with them in the form of the _message_data variable.
+
+The commands for events include "broadcast" and "unicast" as well as the "Receive" hat.
+
+=======================================================
+
+Start
+    setvar my_variable 3
+    broadcast "my message" my_variable
+End
+
+Receive "my message"
+    log "message received with data:" _message_data
+End
+
+Receive "my message"
+    log "Second reception script"
+End
+
+=======================================================
+Console Output:
+message received with data: 3
+Second reception script
+

@@ -1,0 +1,41 @@
+#=
+The player tank's turret.
+Rotates with the player's tank unless shift is held.
+
+This is also what handles shooting the cannon.
+=#
+
+Start
+    setsprite "tank_turret"
+
+    Loop
+        wait 1
+
+		# Checking if a key press is < 1 means you're checking if it is not pressed (regardless of its status last frame)
+        If {getkey "leftshift"} < 1 and {getattribute player_object is_moving}
+            setattribute _rotation {getattribute player_object direction}
+        Endif
+    Endloop
+End
+
+Start
+	# These values are manipulated in the bullet script.
+	setglob tank_shot_limit 2
+    setglob tank_shot_count 0
+
+    Loop
+        wait 1
+
+		# Only allow the player to shoot if there are fewer than 2 shots on screen.
+        If {getkey "z"} > 0 and tank_shot_count < tank_shot_limit
+            sound "shoot"
+            
+            instance "player/player_bullet" player_layer _ _x={getattribute player_object _x} _y={getattribute player_object _y} _rotation=_rotation
+            wait 5
+        Endif
+    Endloop
+End
+
+Receive "game over"
+    delete
+End

@@ -1,0 +1,12 @@
+#=
+A simple collider which follows the camera so that enemies can test to see if they're on the screen.
+Offscreen enemies won't shoot.
+Well. The spiders will still shoot their webs offscreen. I thought that might make things more interesting :)
+=#
+
+Start
+    # leaving a buffer of 20px on each side.
+    setcollider 440 320
+
+    setattribute tag "active_zone"
+End

@@ -1,0 +1,130 @@
+#=
+A helper script to load levels from the level files, and instantiate their elements.
+I was going to put this in root but I thought it'd be better for each script to only do one main function.
+=#
+
+START
+    # Parent (and canvas) for platforms and stage elements.
+    setglob level_parent {instance "container" _self centered=0}
+
+    # Defining functions for adding platforms, spikes, and elements generally.
+    # The three categories each have differing numbers of parameters, so I gave them their own functions.
+    
+    # Platforms have x, y, width, and height.
+    def add_platform x y w h
+        instance "elements/platform" level_parent _ x=x y=y w=w h=h
+    return
+
+    # Spike has a type, x, y, and rotation.
+    def add_spike e x y r
+        IF e == "smallspike"
+            instance "elements/small_spike" level_parent _ xpos=x ypos=y _rotation=(int r)
+        ELIF e == "bigspike"
+            instance "elements/large_spike" level_parent _ xpos=x ypos=y _rotation=(int r)
+        ENDIF
+    return
+
+    # All other elements just have a type and position.
+    def add_element e x y
+        IF e == "coin"
+            instance "elements/coin" level_parent _ xpos=x ypos=y mode=""
+        ELIF e == "bigball"
+            instance "elements/mean_ball" level_parent _ xpos=x ypos=y mode=""
+        ELIF e == "flag"
+            instance "elements/win_flag" level_parent _ xpos=x ypos=y
+        ELIF e == "director"
+            instance "elements/enemy_director" level_parent _ xpos=x ypos=y
+        ELIF e == "smallball"
+            instance "elements/small_enemy" level_parent _ xpos=x ypos=y
+        ENDIF
+    return
+
+    def load_level_file num
+        load file ("levels/l" + num + ".txt") lev_info
+
+        # Run through each line of the file and interpret it as a level element.
+
+        setvar i 0
+        REPEAT (len lev_info)
+            setvar line (lev_info`i)
+
+            # Start by ignoring empty lines and comments.
+            IF line != ""
+                string split line " " line
+                getindex line 0 first_word
+                IF first_word != "#"
+                    getindex line 1 x
+                    getindex line 2 y
+
+                    # Add each level element using the helper functions.
+                    IF first_word == "p"
+                        getindex line 3 w
+                        getindex line 4 h
+
+                        add_platform x=x y=y w=w h=h
+                    ELIF first_word == "f"
+                        add_element e="flag" x=x y=y
+                    ELIF first_word == "c"
+                        add_element e="coin" x=x y=y
+                    ELIF first_word == "be"
+                        add_element e="bigball" x=x y=y
+                    ELIF first_word == "player"
+                        setattribute player_obj spawnx x
+                        setattribute player_obj spawny y
+                    ELIF first_word == "se"
+                        # small enemy
+                        add_element e="smallball" x=x y=y
+                    ELIF first_word == "ls"
+                        # Large spike
+                        add_spike e="bigspike" x=x y=y r=(line`3)
+                    ELIF first_word == "s"
+                        # Small spike
+                        add_spike e="smallspike" x=x y=y r=(line`3)
+                    ELIF first_word == "ed"
+                        # Enemy director
+                        add_element e="director" x=x y=y
+                    ENDIF
+                ENDIF
+            ENDIF
+
+            set i ++
+        ENDREPEAT
+
+        # This is to update the win flag, which may be wrong about how many coins there are.
+        # This message doesn't cause the coin count to change, that's handled in the coin object.
+        broadcast "collect coin"
+    return
+
+    # Signal to load the first level.
+    setglob level 0
+    setattribute ?has_unlocked_exstage 0
+    broadcast "next level"
+END
+
+RECEIVE "next level"
+    IF level == 12
+        # Level 12 is the "You Win" screen, so upon completing that, it sends you back to the title.
+        setglob _scene "Title"
+        broadcast "scene change"
+        END
+    ELIF level == 10
+        IF ?has_unlocked_exstage == 0
+            # 10 is the normal last level. Mitch's level is unlocked if you don't die in the main game.
+            IF player_deaths > 0
+                # If you've died during the game, skip the extra level and go right to the 'you win' screen.
+                set level ++
+            ELSE
+                setattribute ?has_unlocked_exstage 1
+            ENDIF
+        ENDIF
+    ENDIF
+
+    setglob total_coins 0
+
+    set level ++
+    load_level_file num=level
+END
+
+RECEIVE "scene change"
+    delete
+END

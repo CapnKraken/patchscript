@@ -1,0 +1,105 @@
+#=
+The _root object is always the first thing to be instantiated when the project loads in.
+All of its 'Start' scripts will run on the project's first frame.
+=#
+
+Start 
+    # Give the game window a caption.
+	configure caption "Patch Tanks"
+	configure apply
+
+	#= Variable scopes
+	Patchscript variables have three possible scopes: local, object, and global.
+	Locals are accessible only within the current script, and created with 'setvar'.
+	Object variables (attributes) are accessible from any script in the object, and created with 'setattribute'.
+	Globals are accessible from anywhere in the project, and created with 'setglob'
+	
+	Variables starting with '_' are assumed to be Patchscript default variables.
+	Locals like _self, attributes like the drawing variables, and globals like _mouse_position all have default values.
+	There's nothing stopping you from putting _ in front of your own variables, of course. But the default ones all have _.
+	=#
+	
+    # Draw a solid color backdrop
+	setattribute _draw_r 192
+	setattribute _draw_g 218
+	setattribute _draw_b 157
+	setattribute _draw_centered 0
+
+	# Expressions can be inserted in place of values with parentheses.
+	# _screen_resolution is a global variable which stores the width and height in pixel units, in the form of a list.
+	# The ` operator is for list indexing in expressions.
+	draw _self rect (_screen_resolution`0) (_screen_resolution`1)
+
+    # Center the root object on the screen. 
+	# This makes the origin (0,0) be the middle of the window instead of the top left.
+	setposition (_screen_resolution`0 // 2) (_screen_resolution`1 // 2)
+	setglob corner_x (-_x)
+	setglob corner_y (-_y)
+
+    # Load the game sounds
+	load sound "explode" "explode.ogg" 700
+	load sound "player_explode" "player_explode.ogg" 1000
+	load sound "enemy_shoot" "shoot.ogg" 200
+	load sound "shoot" "fire1.ogg" 500
+	load sound "spider_shoot" "fire2.ogg" 500
+
+    # Instantiate an object whose job is to load the graphics
+    instance "graphics_loader" _self _
+    
+    # Instantiate a collider for the 'on-screen' area; enemy shots don't spawn in if they're off-screen. 
+    setglob active_zone {instance "active_zone" _self}
+
+	# Here we could also 'broadcast "reset game"' but there would be a 1-frame delay.
+	# Labels are attributes instantiated on object load, so we can jump to a label that's defined in another script in the same object. 
+    jump game_start
+End
+
+# This message is sent when the player gets a game over and resets the game.
+Receive "reset game"
+    # This stops the other running script instances.
+    stopscripts
+    wait 1
+Label game_start
+    # Create the world parent object (which spawns in the game objects).
+    setglob world {instance "world" _self}
+
+    # Create the UI display object
+    setglob ui_object {instance "ui" _self}
+
+    # Loop to control fullscreen toggling and game quitting
+    setvar is_fullscreen 0
+        
+	Loop
+		wait 1
+
+		#=
+		Here I check for the f11 key. Keys in Patchscript have four states, represented by integers -1 through 2.
+		-1: first frame released (key up, but last frame it was down)
+		0: key up (and wasn't pressed last frame)
+		1: key down (and wasn't up last frame)
+		2: first frame pressed (key down, but last frame it was up)
+		=#
+		If {getkey "f11"} == 2
+			setvar is_fullscreen (not is_fullscreen)
+			
+			# configure allows you to do things like set fullscreen, change screen resolution, window size, etc.
+			# See the script reference for them all.
+			configure fullscreen is_fullscreen
+			
+			If is_fullscreen
+				configure hide_mouse 1
+			Else
+				configure hide_mouse 0
+			Endif
+
+			# Sets a flag in the engine to apply the system changes when the frame is done processing.
+			# So, calling 'configure apply' multiple times in a frame is redundant.
+			configure apply
+		Endif
+
+		If {getkey "escape"} == 2
+			# This stops execution of all scripts in the project and quits the application.
+			stopall
+		Endif
+	Endloop
+End

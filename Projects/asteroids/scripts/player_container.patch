@@ -1,0 +1,182 @@
+#=
+Object to control the motion and collision of the player ship.
+This is also the parent of the player_graphics objects.
+=#
+
+Include basics
+
+START
+    # Setup globals to control how many bullets can be on the screen.
+    setglob shot_count 0
+    setglob shot_limit 3
+
+    load sound "engine" "engine.ogg" 100
+    load sound "shoot" "shoot.ogg" 100
+    load sound "p_explode" "player_explode.ogg" 1000
+
+    # Invincibility for when you get hit.
+    # This will tick down if greater than 0.
+    setattribute iframes 0
+
+    # This is here because I'm lazy and didn't want to type the whole instance command five times.
+    def add_sprite_element m
+        instance "player_graphics" _self _ mode=m parent=_self
+    return
+END
+
+START
+    # can_move is only 0 (false) right after getting hit, when the player ship is not visible.
+    setattribute can_move 1
+
+    setposition 0 0
+    setcollider 10 10
+    setattribute tag "player"
+
+    add_sprite_element m="center_back_booster"
+    add_sprite_element m="left_back_booster"
+    add_sprite_element m="right_back_booster"
+    add_sprite_element m="front_boosters"
+    add_sprite_element m="player_ship"
+
+    setattribute velx 0
+    setattribute vely 0
+
+    # Direction starts at 0=right facing and + is clockwise.
+    setattribute dir -90
+    setvar dir_spd 4
+
+    # Constants for acceleration and deceleration
+    setvar accel 0.004
+    setvar decel 0.95
+
+    def accelerate a
+        # Apply acceleration in the player's current direction.
+
+        set velx += (cos(dir)*rad_deg * a)
+        set vely += (sin(dir)*rad_deg * a)
+        return
+    
+    # shoot_timer is used to get time between shots if the player is holding down the shoot key.
+    setvar shoot_timer 0
+    def shoot_if_possible
+        set shoot_timer --
+        IF shoot_timer <= 0
+            # You can shoot n times per second, if n is the shot limit.
+            setvar shoot_timer (1 / shot_limit * 60 // 1)
+            IF shoot_timer < 1
+                setvar shoot_timer 1
+            ENDIF
+
+            # Shoot a bullet.
+            IF shot_count < shot_limit
+                instance "player_shot" world _ dir=dir _x=_x _y=_y init_xv=velx init_yv=vely tag="bullet"
+                sound "shoot"
+            ENDIF
+        ENDIF
+    return
+
+    # The engine sound plays once every three frames while the ship is accelerating, which creates a mostly-continuous noise.
+    setvar engine_sound_frame 0
+    def apply_engine_sound
+        set engine_sound_frame ++
+        IF engine_sound_frame > 3
+            setvar engine_sound_frame 0
+            sound "engine"
+        ENDIF
+    return
+
+    # Main loop for the player ship.
+    LOOP
+        wait 1
+
+        # Input and movement
+            getkey "up" accel_key
+            getkey "down" decel_key
+            getkey "left" left_key
+            getkey "right" right_key
+
+            getkey "z" shoot_key
+
+            IF can_move == 1
+                IF accel_key > 0
+                    accelerate a=accel
+                    apply_engine_sound
+                ELIF decel_key > 0
+                    IF hard_mode
+                        accelerate a=(-accel/1.5)
+                    ELSE
+                        # Originally, I had deceleration apply an opposite force to acceleration, but it felt better to just slow the player down.
+                        set velx *= decel
+                        set vely *= decel
+                    ENDIF
+                ENDIF
+
+                IF right_key > 0
+                    # Turn clockwise.
+                    set dir += dir_spd
+                ENDIF
+                
+                IF left_key > 0
+                    # Turn counter-clockwise.
+                    set dir -= dir_spd
+                ENDIF
+                
+                IF shoot_key > 0
+                    shoot_if_possible
+                ELSE
+                    setvar shoot_timer 0
+                ENDIF
+
+                # Tick down iframes if the player is currently invulnerable.
+                IF iframes > 0
+                    set iframes --
+                ENDIF
+                
+                # Apply the velocity and change the position.
+                translate velx vely
+
+                # See scripts/basics
+                wrap
+            ENDIF
+    ENDLOOP
+END
+
+# Message sent by the ball that hit the player.
+RECEIVE "hit by ball"
+
+    # If we're invincible, ignore this message.
+    IF iframes > 0
+        END
+    ENDIF
+
+    # 2 seconds of invincibility after getting hit
+    sound "p_explode"
+    setattribute iframes 120
+    instance "particle_explosion" particle_layer _ count=50 init_x=_x init_y=_y min_speed=10 max_speed=200 min_direction=1 max_direction=360 draw_color=COL_WHITE particle_size=10 min_lifetime=60 max_lifetime=240
+    
+    broadcast "player hit"
+
+    # Death animation.
+    setattribute can_move 0
+
+    # Move very far away so it's out of the way before it respawns.
+    setposition 10000 0
+    wait 120
+    setattribute velx 0
+    setattribute vely 0
+    setattribute dir -90
+    wait 1
+    setposition 0 0
+    setattribute can_move 1
+END
+
+RECEIVE "game over"
+    # We can't just delete it because the asteroids are still testing collisions against it.
+    setattribute can_move 0
+    setposition 10000 0
+    stopscripts
+END
+
+RECEIVE "Scene Change"
+    delete
+END

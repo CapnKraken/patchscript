@@ -1,0 +1,36 @@
+#=
+Just a container.
+Children of this object will have their (0,0) be the center of the screen
+=#
+
+START
+    def set_obj_pos obj x y
+        setattribute obj _x x
+        setattribute obj _y y
+    return
+
+    setattribute tag "world"
+
+    # Move to the center of the screen.
+        getindex _screen_resolution 0 s_width
+        getindex _screen_resolution 1 s_height
+
+        set s_width /= 2
+        set s_height /= 2
+        setposition s_width s_height
+
+    # Set the position of the global object "p_world" to this object's position.
+    set_obj_pos obj=p_world x=_x y=_y
+
+    # Clear this object's canvas every frame.
+    # This is necessary because other objects are drawing on it.
+    LOOP
+        wait 1
+        draw _self clear
+    ENDLOOP
+
+    END
+
+RECEIVE "Scene Change"
+    delete
+END

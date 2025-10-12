@@ -1,0 +1,108 @@
+#=
+Ball that floats around and gets hit by bullets, then splits into smaller balls.
+It's called "Asteroid" because this is an asteroids clone, I guess.
+=#
+
+Include basics
+
+START
+    wait 1
+
+    # Decrease the bulk by one. The lowest possible bulk is 1 (the small balls).
+    set bulk --
+    IF bulk < 1
+        delete
+    ENDIF
+    
+    # When we tell the sprite maker to give us a sprite, we include this object's ID and its size.
+    #   (Sprite maker can pick the color for us  :)
+    unicast sprite_maker "draw ball" [_self, _width]
+END
+
+# This message is from the sprite maker. The message data contains the name of the newly drawn sprite.
+#   Once the asteroid receives this message it can go about doing the rest of its stuff.
+RECEIVE "sprite done"
+
+    # Play a different sound based on how big the asteroid is.
+    IF bulk > 3
+        setvar exp_sound "largexp"
+    ELIF bulk > 1
+        setvar exp_sound "medexp"
+    ELSE
+        setvar exp_sound "smallexp"
+    ENDIF
+
+    setvar new_size (( bulk - 1) * 50)
+    set direction += {random -120 120}
+
+    setsprite (_message_data`0)
+    setvar my_color (_message_data`1)
+
+    setvar sz (_width * 0.7)
+    setcollider sz sz
+
+    LOOP
+        wait 1
+
+        move direction velocity
+        wrap
+        wrap_sprite px=_x py=_y x=_x y=_y
+
+        test_tag_collision t="bullet"
+        IF _return != -1
+            # Get hit by a bullet
+            getindex collisions _return collided_bullet
+            unicast collided_bullet "hit object"
+
+            # Make sure we're not colliding with a bullet that's already hit something.
+            IF not {getattribute collided_bullet is_alive}
+                jump after_bullet_check
+            ENDIF
+
+            setattribute collided_bullet is_alive 0
+            
+            IF bulk > 1
+                # Set up angles to spawn the asteroids based on where the bullet hit it.
+                setvar dir (180 + {angle_obj o1=_self o2=collided_bullet})
+
+                REPEAT 3
+                    # Randomize the speed a bit.
+                    IF hard_mode
+                        random (velocity + 20) (velocity + 70) v
+                    ELSE
+                        random (velocity + 10) (velocity + 50) v
+                    ENDIF
+
+                    instance "asteroid" world _ _x=_x _y=_y direction=dir velocity=(v/10) _width=new_size _height=new_size tag="asteroid" bulk=bulk
+                    ENDREPEAT
+                ENDIF
+
+            sound exp_sound
+
+            # Set up the particle values for the asteroid explosion.
+            setvar psize (bulk * 5)
+            setvar plife (bulk * 20)
+            setvar pcount (bulk * 10)
+
+            # Spawn the particle system for the explosion.
+            instance "particle_explosion" particle_layer _ count=pcount init_x=_x init_y=_y min_speed=10 max_speed=200 min_direction=1 max_direction=360 draw_color=my_color particle_size=psize min_lifetime=20 max_lifetime=plife
+           
+            # Larger asteroids are worth more points.
+            broadcast "score update" (bulk * 5)
+            broadcast "remove asteroid"
+            delete
+        ENDIF
+        
+        LABEL after_bullet_check
+
+        # Test player collision
+        IF {collide _self player}
+            unicast player "hit by ball"
+        ENDIF
+
+    ENDLOOP
+END
+
+RECEIVE "Scene Change"
+    delete
+END

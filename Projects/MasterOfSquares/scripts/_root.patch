@@ -1,0 +1,116 @@
+#=
+This is a port of The Master of Squares, a very early Scratch game of mine.
+It's not a great game but it was very small and simple, so it was pretty straightforward to port it to Patch.
+
+Additionally, I was able to implement a proof-of-concept replay system, where the inputs are stored and played back.
+So that's neat and I hope to add similar features to other games.
+=#
+
+Start 
+    configure screen_resolution 960 720
+    configure window_size 960 720
+    configure hide_mouse 1
+    load sprite "_icon" "player1.png"
+    configure caption "The Master of Squares"
+    configure apply
+
+    setattribute bgcolors [[255,213,153],[255,255,153],[156,255,189],[255,213,153],[255,206,247],[153,255,255]]
+    def set_bg index 
+        setvar bgcolor (bgcolors`index)
+        setattribute _draw_r (bgcolor`0)
+        setattribute _draw_g (bgcolor`1)
+        setattribute _draw_b (bgcolor`2)
+        setattribute _draw_centered 1
+        draw _self rect (_screen_resolution`0) (_screen_resolution`1)
+    return
+
+    setposition (_screen_resolution`0 // 2) (_screen_resolution`1 // 2)
+    
+    setglob current_platforms {instance "level_mask" _self mode="platforms" level=0}
+    setglob current_hazards {instance "level_mask" _self mode="hazards" level=0}
+    setglob current_level_facade {instance "level_mask" _self mode="Original_Backdrops" level=0}
+    def set_level level 
+        set_bg index=(level-1)
+    return
+
+    setglob player_deaths 0
+    setglob current_level 0
+    setglob elapsed_time 0
+    setglob is_replaying 0
+    music "MOS.ogg" 0
+	
+	load sound "jump" "boink.ogg"
+
+    instance "player" _self _
+    instance "ui" _self _
+    instance "pause_text" _self _ _ignore_pause=1
+
+    broadcast "next level"
+
+    fork timer_loop
+
+    setvar is_fullscreen 0
+    Loop
+        wait 1
+
+        getkey "escape" pause_pressed
+        getkey "f11" fullscreen_pressed
+        getkey "q" quit_pressed
+        getkey "r" restart_pressed
+        getkey "p" replay_pressed
+
+        If fullscreen_pressed == 2
+            setvar is_fullscreen (not is_fullscreen)
+            configure fullscreen is_fullscreen
+            configure apply
+        Endif
+
+        If pause_pressed == 2
+            If _paused
+                music resume
+                broadcast "unpause"
+                setglob _paused 0
+            Else
+                music pause
+                broadcast "pause"
+                setglob _paused 1
+            Endif
+        Endif
+
+        If _paused
+            If quit_pressed == 2
+                stopall
+            Elif restart_pressed == 2
+                setglob is_replaying 0
+                Label restart_game
+                setglob current_level 0
+                setglob player_deaths 0
+                setglob elapsed_time 0
+                setattribute current_platforms level 0
+                setattribute current_hazards level 0
+                setattribute current_level_facade level 0
+                broadcast "unpause"
+                setglob _paused 0
+                broadcast "next level"
+            Elif replay_pressed == 2
+				music resume
+                setglob is_replaying 1
+                jump restart_game
+            Endif
+        Endif
+    Endloop
+End 
+
+Label timer_loop
+    Loop 
+        wait 60
+        set elapsed_time ++
+        broadcast "ui update"
+    Endloop
+End
+
+Receive "next level"
+    set_bg index=current_level
+    set current_level += 1
+    broadcast "ui update"
+End

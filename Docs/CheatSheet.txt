@@ -1,0 +1,693 @@
+This file is my original reference for the scripting system.
+It's not really organized as its purpose was just to remind me how each command worked if I forgot.
+
+It'll probably be more useful to start by looking at one of the sample projects and poking around in there.
+===================================================================================================
+
+Start
+-start a script when the object is instantiated.
+
+Receive "message"
+-start a script when the object receives "message"
+-if the message includes data, it will be stored in the local variable "_message_data"
+
+Include script
+-loads in a copy of scripts/script.patch as if it were a part of the host script.
+
+Trap
+-Catches an error arising from any one of the object's scripts.
+-This is how you do exception handling in Patch.
+-Technically records the error type in the local variable "_error_type" but the types aren't very descriptive yet.
+    -error handling needs another overhaul at some point.
+
+# This is a comment. It will be ignored.
+# The '#' must be the first non-whitespace character in the line for the comment to work.
+
+#=
+All of these lines...
+...are part of a...
+multiline comment. :D
+=#
+
+End
+-ends execution of a script
+
+Repeat 5
+--
+Endrepeat
+-repeats the code inside 5 times.
+
+While var > 0
+--
+Endwhile
+-repeats the code inside as long as var > 0
+
+If var < 0
+--
+Elif var > 0
+--
+Else
+--
+Endif
+-if statement. You can have as many elif's as you want (including none). Else is optional.
+-all if statements must end with ENDIF
+
+-the conditions following 'if', 'elif', and 'while' statements are evaluated as (infix) expressions.
+-so something like "while var > 5 or var < -5" is valid
+
+def func i j
+-defines a function called 'func' with parameters 'i' and 'j'
+-to call, you would need to specify the parameters, for example:
+    func i=0 j=10
+
+return
+-ends a function. Only use following def.
+-in order to return a value, set the local variable '_return' in the body of the function. 
+-The 'return' command only signifies the end of a function.
+
+wait x
+-script halts for x frames, then continues execution.
+
+setvar var 5
+-sets local variable 'var' to 5
+-accepts any value
+
+setattribute xpos x
+-sets the 'xpos' variable in the host object to the value of x.
+-if the host object doesn't have a variable called 'xpos', it will be created.
+
+setattribute obj xpos x
+-sets the 'xpos' variable in the object referenced by 'obj' to the value of x.
+-if the object doesn't exist, this will do nothing.
+
+getattribute obj xpos x
+-sets the value of x to the given object's 'xpos' variable.
+-will be 0 if the variable or object doesn't exist.
+-if the variable at the end is omitted, the returned value will be stored in _return.
+
+setglob
+-same as setattribute but for global variables.
+
+getglob
+-same as getattribute but for global variables.
+
+set x 5
+-sets the variable, attribute or glob called 'x' to 5.
+
+set x ++
+-increments x by 1
+-'--' also works, if you want to decrement.
+
+set x += 5
+-increments x by 5
+-other increments:
+    -=
+    *=
+    /=  (float division)
+    //= (integer division)
+
+log "xpos:" xpos
+-prints xpos: 5 (assuming variable xpos is equal to 5)
+-This is patch's "print()" statement.
+-An arbitrary number of values can be printed; just leave a space between them.
+-Note: multiple values printed using spaces will always print with a space.
+       you can avoid this using expressions, for example:
+       log ("x:" + 3)
+       output: x:3
+
+broadcast "message" data
+-sends a message called "message" to all objects
+-message must be a string, and is case-insensitive (so the message "BoB" will be received as "bob").
+-data field is optional. Send one unit of data along with the message.
+    -stored in the local variable _message_data in the responding script
+    -if no data is included, this variable will be 0
+    -to send multiple points of data, send a list
+
+unicast obj "message" data
+-sends "message" to obj only
+-can also send optional data, like broadcast.
+
+label x
+-defines a label 'x' on that line.
+-this is a reference point for jumps and forks.
+-internally, labels are attributes.
+
+fork line_num
+-start a new script starting at line_num
+-for actual use, have line_num be a label.
+
+jump 5
+-jumps execution to line 5
+-you can also jump to a defined label, like "jump label_name"
+-this is goto, essentially. Sue me.
+
+jump init_pos if xpos 5 >
+-conditional jump, otherwise the same as jump.
+-the condition following 'if' is a postfix expression- see 'eval' below.
+
+eval x 5 6 + 2 -
+-sets 'x' to 5 + 6 - 2 (which is 9)
+-postfix expression evaluator, which means the operators follow the operands
+-operators:
+    Unary Operators (only take one operand):
+        not (any type)*: turns logical 'false' to logical 'true' and vice versa
+            for numbers, a value of 0 is logically false, everything else is true
+            for strings/lists, empty string/list is false
+            for gameobjects, root object is false
+        len (string and list): compute the length of the string or list
+        lower/upper (string): convert the string to lowercase/uppercase
+        sin/cos/tan/arcsin/arccos/arctan (int or float): compute the specified trig function
+        round (int/float) : rounds a number to an integer
+        str/int/float (any type): casts the operand to the requested type, if possible.
+        - (int/float): unary minus (negate the operand)
+    Binary Operators (take two operands)
+        (any type):
+        and: results in 1 if both operands are logically true, 0 otherwise
+        or: results in 1 if either operand is logically true, 0 otherwise
+        ==/!=: results in 1 if the operands are equal/not equal, 0 otherwise
+
+        (string and list):
+        `: array subscript operator. First operand must be a string or list, second operand must be an int.
+
+        (string, int, and float):
+        +: adds or concatenates the operands. Both operands must be of compatible types (so, you can't add a string and a number)
+        </<=: results in 1 if the first operand is less than/less than or equal to the second, 0 otherwise
+        >/>=: results in 1 if the first operand is greater than/greater than or equal to the second, 0 otherwise
+
+        (int and float):
+        -: subtract the operands
+        *: multiply the operands
+        /: divide the operands
+        //: divide using integer division
+        ^: calcualte the first operand to the power of the second
+
+        (int only):
+        %: results in the remainder of a division between the operands
+        &: bitwise AND the two operands
+        |: bitwise OR
+        ~: bitwise exclusive OR
+
+    *note: gameobjects are represented by their identification numbers and are effectively integers here.
+
+setposition x y
+-sets the host object's local position to (x,y)
+
+move direction magnitude
+-moves the object in a direction and magnitude.
+-direction is in degrees, starts at 0 = right and increases clockwise.
+
+translate x y
+-changes the object's position by the given x and y values.
+
+random 0 10 var
+-sets 'var' to a random integer between 0 and 10, inclusive.
+-if the variable is omitted, the value will be stored in _return.
+-used in expression: setvar value {random 0 10}
+
+random seed 100
+-seeds the random number generator with the given value.
+
+angle 0 0 10 10 var
+-finds the angle between two points and stores it in a variable.
+-in this case, it sets 'var' to the angle between (0,0) and (10,10)
+-if 'var' is left out, '_return' will be set.
+
+distance 0 0 10 10 var
+-finds the distance between two points and stores it in a variable.
+-if 'var' is left out, '_return' will be set.
+
+load sprite "sprite_name" "sheet1.png" x y w h
+-loads a sprite into the sprite dictionary, filed under sprite_name (a string variable)
+-sheet1.png is the image file to load, and x, y, w, h are the specific dimensions to take from it
+-if you leave off x, y, w, and h, it'll load the whole image.
+
+-load sprite "_icon" ... will set the icon of the window after a call to 'configure apply'
+
+load sound "shoot" "shoot1.ogg" 100
+-loads a sound, called "shoot" from file "shoot1.ogg", specified to play for 100 milliseconds
+-you can leave out the milliseconds if you want the whole sound to be loaded.
+
+load file "data.txt" loaded_data
+-loads the content of data.txt into loaded_data
+-if the variable (loaded_data in this case) is omitted, the contents will be placed in _return.
+
+load font "fontfile.ttf"
+-load the specified font from the 'fonts' folder
+
+unload sprite "my_sprite"
+-remove the sprite called "my_sprite" from the loaded sprite pool.
+-use the name of the sprite you gave it when loading.
+
+unload sound "my_sound"
+-remove the sound called "my_sound" from the loaded sound pool.
+-use the name of the sound you gave it when loading.
+
+unload font "my_font"
+-remove the font called "my_font" from the loaded font pool.
+-use the name of the font you gave it when loading.
+
+save file "file.txt" contents
+-contents expects a list, saves to file a.txt, one element per line
+
+save canvas "image.png"
+-saves the current object's canvas
+
+setsprite "sprite_name"
+-sets the object's sprite to the sprite called sprite_name in the gobj sprite dictionary
+-can be rect or ellipse as well.
+    i.e. "setsprite rect" "setsprite ellipse"
+    in this case their dimensions will be taken from the _width and _height attributes, and color from the drawing attributes.
+
+updatesprite
+-force a graphics update. Graphics are automatically updated at the end of the frame so normally this isn't needed.
+-However, it's useful for programs which draw using 'stamp'.
+
+music "stage1.ogg" 1000
+-change the currently playing music to "stage1.ogg" after a 1-second (1000 milliseconds) fade-out of the current track.
+-by default, it will look for music in the "audio" folder
+-leave out the fade duration to switch music immediately
+
+music pause 
+-pause music playback
+
+music resume 
+-resume music playback 
+
+music position music_time
+-saves the playback position in the currently playing music track in the variable 'music_time'
+
+music seek seek_time
+-skips to the time in the music track specified by seek_time. It's expecting a time in milliseconds.
+
+sound bump
+-plays sound effect 'bump'
+-make sure you've loaded in a sound with that name already
+
+sound pause 
+-pauses all sound effects
+
+sound resume
+-resumes paused sound effects
+
+delete
+-deletes the object after the frame is over.
+
+string join newstr str1 str2 ...
+-joins str1, str2, etc and stores the new string in newstr.
+
+string split "string/1/three parts" "/" split_var
+-splits the given string around the given delimiter, and stores it in the given variable as a list of strings.
+-after the example line, split_var would equal ["string", "1", "three parts"]
+-if the variable at the end is omitted, the result will be stored in _return.
+
+merge list1 list2 ...
+-merges list2, etc into list1
+
+append mylist 0 5 ypos
+-appends 0, 5, and the value of ypos to mylist
+
+remove mylist 5 var
+-removes index 5 from mylist and stores it in var. 
+-if the variable at the end is omitted, the removed value will be put in _return
+-if the specified index is out of range, an error will be thrown.
+
+insert mylist 5 var
+-inserts var's value before index 5 of mylist.
+-will throw an error if out of range.
+
+copy oldlist newlist
+-makes a deep copy of oldlist into newlist
+
+getindex mylist i xpos
+-gets the value at index i of mylist and stores it in xpos
+-returns 0 if out of bounds
+
+setindex mylist i xpos
+-sets the value at position i of mylist to the value of xpos
+-nothing happens if x is out of bounds
+
+setindex mylist 0 ++
+-increments element 0 in mylist. If mylist[0] is non-numeric, error will be thrown
+-you can also do --
+
+setindex mylist 1 += 5
+-increments element 1 in mylist by 5
+-other options are -=, *=, /=, //=
+
+instance "new_script" parent_obj new_obj attribute1=0 att2=var ...
+-instantiates a gobj as a child of parent_obj and stores it in new_obj
+-the gobj will use the script specified by after 'instance' (looking in scripts/<given_filename>.patch) and have as many specified attributes as you want.
+-if new_obj is replaced with _ then the object will not be saved to a variable (often not needed)
+-if new_obj is omitted entirely then the new object's ID will be stored in _return.
+
+adopt obj
+-Re-parent a specific game object under the current game object.
+-obj is a variable representing a game object.
+-In order to work, obj cannot be equal to the calling object or any of its ancestors (parent, that object's parent, all the way to the root).
+
+changelayer obj amount
+-Reorder the object's children (for render order purposes)
+-To work, 'obj' must be storing the id of a child object.
+-amount expects either an integer, 'front', or 'back'
+    front: moves the object to the end of the child list, so it will update/render last (on top of everything else)
+    back: moves the object to the beginning of the child list, so it will update/render first
+    having an integer will move the an arbitrary number of layers, wrapping around if you go out of bounds.
+
+setcollider w h
+-sets the size of the object's collision box
+
+collide _self all
+-tests collisions from _self against every object with a collider.
+-The result will be placed in the local variable '_return'
+
+collide my_obj line 0 0 xp yp
+-tests collision of my_obj with a line going from (0, 0) to (xp, yp)
+-if it is colliding, _return will contain a 1. If not, 0.
+
+collide _self point 100 100
+-puts '1' in _return if (100, 100) is within _self's collider
+
+collide _self other_obj
+-puts '1' in _return if _self is colliding with other_obj
+
+setmask
+-sets the collision mask up with the current sprite information (rotation, scale, etc... so make sure sprite is updated before calling.)
+
+maskcollide obj1 obj2
+-perform a pixel-perfect collision between the two objects, with the result stored in _return.
+-if one or both does not have a mask configured, returns 0
+-maskcollide uses the render rect of the objects to see if they might be colliding first. So, if you update the sprite the mask may break.
+
+stopscripts
+-stops all of the object's other currently running scripts, but leaves the calling script running
+
+stopall
+-stops execution of the entire project
+
+draw _self rect 10 10
+-draws a rectangle of size (10,10) at the object's current position
+-first parameter of 'draw' specifies the canvas to draw on
+
+draw _self ellipse 10 10
+-draws an ellipse of size (10,10) at the object's current position
+
+draw _self line 0 0 100 100
+-draws a line from (0,0) to (100,100)
+
+draw _self polygon [0, 0, 100, 100, 0, 100]
+-draws a triangle using the points (0,0), (100,100), and (0,100)
+-adding more x,y pairs onto the end will result in an n-agon being drawn
+
+draw _self "sprite" 1
+-assuming there's a loaded sprite called "sprite", draw that at the object's current position, on the canvas of _self
+-if there is a number at the end, it'll scale the sprite size by that much.
+
+draw _self text "Hello, world!"
+-draws text to the object's canvas
+-font size is controlled by _draw_stroke attribute
+
+draw _self clear
+-clear the object "_self"'s draw canvas
+
+draw rect, ellipse, polygon, and line take information from the attributes:
+    '_draw_stroke' : the width of the border. If zero, the shape will be filled.
+    '_draw_r/g/b' : the color to draw the shape (draw text also uses this)
+    '_draw_centered' : if 1, the shape is centered on the object position, if 0, the top-left of the drawing will be the object's position.
+
+stamp _self
+-stamp the gobj's image onto its canvas (if _self is another object, stamp that object onto the current gobj's canvas)
+
+colorshift r g b a 
+-set the sprite's colorshift value. (a is optional)
+-colorshift is not currently recognized as a transformation so you'll need to call 'updatesprite' to see the result.
+
+getkey "space" space_pressed
+-gets the current status of the specified key and stores it in a variable
+-results will be:
+    0:  not pressed (excluding frame released)
+    1:  pressed (excluding first frame)
+    2:  first frame pressed
+    -1: first frame released 
+-So for example, if you wanted to see if a key was down (not caring whether or not it was the first frame) you could do:
+    If {getkey "space"} > 1
+        # do the thing
+    Endif
+
+-keys you can use:
+    "backspace"
+    "tab"
+    "return"
+    "escape"
+    "space"
+    "quote"
+    "comma"
+    "minus"
+    "equals"
+    "period"
+    "slash"
+    "backslash"
+    "0"
+    "1"
+    "2"
+    "3"
+    "4"
+    "5"
+    "6"
+    "7"
+    "8"
+    "9"
+    "semicolon"
+    "leftbracket"
+    "rightbracket"
+    "grave"  (this symbol: `)
+    "a"
+    "b"
+    "c"
+    "d"
+    "e"
+    "f"
+    "g"
+    "h"
+    "i"
+    "j"
+    "k"
+    "l"
+    "m"
+    "n"
+    "o"
+    "p"
+    "q"
+    "r"
+    "s"
+    "t"
+    "q"
+    "r"
+    "s"
+    "t"
+    "u"
+    "v"
+    "w"
+    "x"
+    "y"
+    "z"
+    "delete"
+    "up"
+    "down"
+    "left"
+    "right"
+    "insert"
+    "home"
+    "end"
+    "pageup"
+    "pagedown"
+    "f1"
+    "f2"
+    "f3"
+    "f4"
+    "f5"
+    "f6"
+    "f7"
+    "f8"
+    "f9"
+    "f10"
+    "f11"
+    "f12"
+    "capslock"
+    "leftshift"
+    "rightshift"
+    "leftcontrol"
+    "rightcontrol"
+    "leftalt"
+    "rightalt"
+    "mouse_left" (these are recorded as key presses in Patch)
+    "mouse_right"
+    "mouse_center"
+
+configure fullscreen 1
+-enables fullscreen (set it to 0 to disable it)
+
+configure screen_resolution 1920 1080
+-sets the screen resolution to 1920 by 1080 (default is 480 by 360)
+
+configure window_size 1000 1000
+-sets the window size to 1000 by 1000 (screen resolution is stretched to fit)
+
+configure target_framerate 60
+-sets the target framerate to 60
+
+configure hide_mouse 1
+-hides the mouse (0 to show mouse)
+
+configure caption "Game"
+-sets the window caption to "Game"
+
+load sprite "_icon" "graphics.png"
+-sets the window/taskbar icon to graphics.png
+
+configure apply
+-apply engine configuration changes
+
+=-=-=-=-=-=-=-=-=
+OTHER NOTES
+=-=-=-=-=-=-=-=-=
+The first script loaded and run will always be /scripts/_root.patch relative to program execution
+If that folder or file does not exist in the local directory, a file dialog will appear asking you for a folder containing a scripts folder and a _root script.
+-this dialog defaults to looking in a "Projects" directory.
+
+Variable names and commands are case-insensitive.
+
+Labels are just variables internally, so you can't have a variable and a label share a name.
+When using jumps, make sure not to jump outside of the current scope. (Don't jump outside a function. It won't know the function has finished.)
+You're fine jumping out of loops or if statements though, because those are just jumps anyway.
+    However, jumping into loops will be a problem if the loop's control variables haven't been initialized pre-jump.
+    I do not know why you would want to do this anyway.
+Each function can only have one return statement.
+
+Variable Scope:
+There are three scopes a variable can be: local, object, and global.
+Local variables are per-script. Other objects, and other scripts within the object, can't see them.
+Object variables, aka. attributes, are available to all scripts within an object.
+Global variables (globs) are visible to all objects and scripts.
+
+To create/modify a local variable, use 'setvar'
+To create/modify an object variable, use 'setattribute'
+To create/modify a global variable, use 'setglob'
+
+When accessing variables, keep in mind the priority is as follows: 1:local, 2:object, 3:global.
+    So, say there's both a global and local variable called 'count', from the perspective of a particular script.
+    If the script runs the line 'set count += 1', the local version of the variable will be incremented by 1.
+If you have duplicate names and want to access variables of lower priority, store them in a temporary variable using 'getattribute' or 'getglob'
+    Per the previous example, if you wanted to increment the global 'count':
+    getglob count temp_var
+    set temp_var ++
+    setglob count temp_var
+Although, it's probably a better idea just to avoid this by naming your variables differently.
+
+Special Local Variables:
+
+_message_data    : stores the data (if any) sent with a message being received
+_error_type      : stores data about an error that was thrown
+
+Special Attributes:
+
+_self               : stores a reference to the object's unique id
+_ignore_pause       : if true, the object will still execute its scripts when the '_paused' glob is set to true.
+_rotation           : the sprite rotation (doesn't affect hitbox orientation)
+_fliph              : if true, the sprite will be mirrored horizontally
+_flipv              : if true, the sprite will be mirrored vertically
+_global_x           : the x position of the object in window coordinates
+_global_y           : the y position, window coordinates
+_x                  : the local x position (relative to parent object)
+_y                  : the local y position
+_width              : the width in pixels (of the sprite)
+_height             : the height of the sprite in pixels
+_hide_errors        : if true, any errors thrown by the object will not be printed to the console. Defaults to 0.
+_transform_children : if true, changes to _rotation, _fliph, or _flipv will affect child objects' position, rotation, and flip.
+                      Use this sparingly as it can easily slow down the project if used too much.
+                      It defaults to the value of its parent's _transform_children variable, or false at the root.
+
+Editing the values of _rotation, _fliph/v, _width, or _height will trigger those graphical changes to be reflected the next frame.
+
+Drawing attributes:
+    _draw_centered
+    _draw_stroke
+    _draw_r 
+    _draw_g 
+    _draw_b
+    _draw_a 
+    _draw_font
+    _draw_antialiased (only affects text and thin lines for now)
+
+Special Globs:
+
+_paused : whether or not the game is paused
+_inputs : stores an array of the user inputs
+_music  : stores the currently playing music track
+_sfx_vol: the volume of the sound effects
+_music_vol: the volume of the music
+_mouse_position: the location of the mouse pointer
+_real_fps: the actual framerate of the clock
+_screen_resolution: the screen resolution (list of 2 elements, width and height)
+_window_size: the window size             (list of 2 elements, width and height)
+_local_directory: the current base directory (you can set this to change where Patch looks for files)
+
+=-=-=-=-=-=-=-=-=
+EXPRESSIONS
+=-=-=-=-=-=-=-=-=
+Internally, all expressions are evaluated in reverse Polish notation (postfix) via the 'eval' command.
+However, you can use infix expressions in your code and they'll be converted to postfix when the script is loaded.
+
+You can insert an expression anywhere a value can appear, using parentheses ().
+For example:
+setattribute player_health (enemy_damage * damage_multiplier)
+
+'if', 'elif', and 'while' expect to be followed by expressions, so you don't need parentheses for them.
+
+Function calls can also be inserted anywhere a value can go, using curly braces {}.
+-Any function or command that places a value in the '_return' local variable can be used in this way.
+-This includes builtin commands like getattribute or collide.
+
+Operator Precedence (evaluation order, higher precedence is evaluated first)
+    7: ^, `
+    6: len, sin, cos, tan, arcsin, arccos, arctan, lower, upper,
+       abs, round, int, float, str
+    5: - (unary negation operator)
+    4: *, /, //, %
+    3: +, -, &, |, ~
+    2: >, >=, <, <=, ==, !=
+    1: not
+    0: and, or 
+
+    Parentheses can be used to override precedence.
+
+=-=-=-=-=-=-=-=-=
+FILE PATHS
+=-=-=-=-=-=-=-=-=
+Patch will look in different places for files depending on the type of file you're trying to access.
+The special global variable "_local_directory" will be treated as the starting point for any file accesses.
+
+Images: When loading a sprite or graphic, Patch will look (by default) in the "visuals" folder.
+-For example, 'load sprite "player" "bob.png"' will look for the file "visuals/bob.png"
+-this also applies when saving the canvas.
+
+Audio: When loading a sound or playing music, Patch will look in the "audio" folder.
+
+Fonts: They get their own folder as well, "fonts".
+
+Patch Script Files: When instantiating new objects, their file names are located in the "scripts" folder.
+-Ex: instance "my_obj" _self _
+-looks for the file "scripts/my_obj.patch"
+
+Saving/Loading: When saving or loading files (using the 'save' and 'load' commands) the default directory is "data".
+
+If you want to use your own custom directory structure, you can place a backslash at the beginning of the file path.
+This will cause Patch to disregard the file type and treat the local directory + the given path as the address.
+
+=-=-=-=-=-=-=-=-=
+ERROR HANDLING
+=-=-=-=-=-=-=-=-=
+If a script runs into an error, it will terminate, and a new playhead will be initiated at all 'Trap' hats.
+To get around this, I'd recommend putting error-prone code in a separate script, via 'fork'.
+That way if it throws an error, it can be handled and the main script need not terminate.
+
+

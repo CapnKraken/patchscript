@@ -1,0 +1,46 @@
+Patch uses a three-tiered system for variables.
+
+1. Globals (or "globs")
+    Accessible by every script running in the project.
+    Created/Modified using "setglob".
+
+setglob global_var_name <>
+
+
+2. Attributes (object-local)
+    Accessible by every script running in the object the attribute belongs to.
+    Objects are instantiated with default attributes, and more can be defined in their scripts.
+    Created/Modified using "setattribute".
+
+setattribute object_local_var_name <>
+
+3. Variables (script-local)
+    Accessible only in the script which defines them.
+    Multiple instances of a script will have independent versions of local variables.
+    These are the default kind of variable.
+    Created/Modified using "setvar".
+
+setvar local_var_name <>
+
+SET 
+
+"set" is a general-purpose variable modifier command.
+If there is a variable, attribute, or global called "count", for instance, it can be modified like:
+
+set count 5
+
+"set" can also increment values.
+
+set count ++
+set count -= 5
+set count *= 5
+
+...and so on
+Modifiers are:
+    ++
+    --
+    +=
+    -=
+    *=
+    /=  (floating-point division)
+    //= (integer division)

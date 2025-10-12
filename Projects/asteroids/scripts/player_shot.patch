@@ -1,0 +1,81 @@
+#=
+Player bullet. Pew pew pew!
+
+Attributes: 
+-dir     : player direction at time of firing
+-init_xv : x velocity to be added to motion
+-init_yv : y velocity to be added to motion
+=#
+
+Include basics
+
+START
+    setattribute is_alive 1
+    def self_delete 
+        set shot_count --
+        setattribute is_alive 0
+        delete
+    return
+
+    setattribute hit_obj 0
+
+    # glob shot_count
+    set shot_count ++ 
+
+    setcollider 30 30
+    setsprite "player_shot"
+    setattribute _width 100
+    setattribute _height 6
+
+    setattribute _rotation dir
+    
+
+    move dir 80
+
+    setvar speed 20
+
+    # 'fork' creates a new playhead starting at the label 'deletion_timer'
+    fork deletion_timer
+
+    LOOP
+        wait 1
+        translate init_xv init_yv
+        move dir speed
+        wrap
+    ENDLOOP
+END
+
+LABEL deletion_timer
+    wait 120
+    self_delete
+END
+
+START
+    # The bullet is worth slightly more the longer it flies.
+    # Due to this, you get more score from sniping an asteroid from long range than you do point-blank.
+
+    setattribute score_value 10
+    REPEAT 10
+        wait 10
+        set score_value += 5
+        ENDREPEAT
+    END
+
+# The bullet receives this message from the asteroid it hits.
+RECEIVE "hit object"
+    IF hit_obj == 0
+        # Setting this flag ensures the bullet can only register one collision,
+        #   and thus only delete itself once.
+        setattribute hit_obj 1
+        broadcast "score update" score_value
+        self_delete
+    ENDIF
+END
+
+RECEIVE "game over"
+    delete
+END
+
+RECEIVE "Scene Change"
+    delete
+END

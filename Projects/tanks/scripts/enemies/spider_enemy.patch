@@ -1,0 +1,108 @@
+#=
+Spider enemy.
+Will shoot bullets in a ring formation as well as spider web bullets at the player.
+
+Also, only travels in straight lines up/down or right/left.
+=#
+
+Include enemies/enemy_base
+
+Start
+    setsprite "spider_body"
+
+    setattribute health 5
+    setattribute score_value 500
+
+    make_hurtbox w=20 h=20
+
+	# spawn in the legs, which just hang out on the sides (kinda like the player's tank treads)
+    setattribute _transform_children 1
+    instance "enemies/spider_legs" _self legs1 _x=0 _y=10 _fliph=1 _flipv=1
+    instance "enemies/spider_legs" _self legs2 _x=0 _y=-10 _fliph=0
+
+    setvar distance_to_player 0
+    setvar speed 2
+
+	## Determine which direction the spider is facing, and how far it has to travel.
+    def orient_spider
+        setvar vertical_distance ({getattribute player_object _y} - _y)
+        setvar horizontal_distance ({getattribute player_object _y} - _x)
+
+        # It'll take the longer distance and run that way.
+        If abs vertical_distance > abs horizontal_distance
+            setvar distance_to_player (abs vertical_distance)
+            setcollider 20 30
+            If vertical_distance < 0
+                setattribute _rotation -90
+            Else
+                setattribute _rotation 90
+            Endif
+        Else
+            setvar distance_to_player (abs horizontal_distance)
+            setcollider 30 20
+            If horizontal_distance < 0
+                setattribute _rotation 180
+            Else
+                setattribute _rotation 0
+            Endif
+        Endif
+    return
+	#-
+
+	# Main loop
+    Loop
+		# orient, move that much, wait 10 frames. Pretty simple.
+        orient_spider
+
+        Repeat (distance_to_player // speed)
+            wait 1
+            move _rotation speed
+        Endrepeat
+
+        wait 10
+    Endloop
+End
+
+# Fire control loop.
+Start
+    Loop
+		# Spider takes longer to shoot than the round enemy.
+        wait {random 240 500}
+        
+		# There are three patterns but they are weighted differently.
+        setvar pattern {random 1 20}
+
+        If pattern > 15 and pattern < 20
+            # Sort of rare pattern. 8-way normal bullets.
+
+            If {collide _self active_zone}
+                sound "enemy_shoot"
+
+                setvar bullet_dir 0
+                Repeat 8
+                    instance "enemies/enemy_bullet" enemy_bullet_layer _ _x=_x _y=_y direction=bullet_dir type="main"
+                    set bullet_dir += (360/8)
+                Endrepeat
+            Endif
+        Elif pattern == 20
+            # Most rare pattern. 8-way spider webs.
+
+            sound "spider_shoot"
+
+            setvar bullet_dir 0
+            Repeat 8
+                instance "enemies/enemy_bullet" enemy_bullet_layer _ _x=_x _y=_y direction=bullet_dir type="spider"
+                set bullet_dir += (360/8)
+            Endrepeat
+        Else
+            # Common pattern. Between 1 and 3 aimed spider webs.
+            Repeat {random 1 3}
+                sound "spider_shoot"
+
+                instance "enemies/enemy_bullet" enemy_bullet_layer _ _x=_x _y=_y direction={angle_to_player} type="spider"
+                wait {random 5 20}
+            Endrepeat
+        Endif
+    Endloop
+End
+

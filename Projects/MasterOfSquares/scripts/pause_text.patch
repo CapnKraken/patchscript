@@ -1,0 +1,35 @@
+#=
+Just some text for when the game is paused.
+=#
+
+Receive "pause"
+    setposition 0 0
+    setattribute _draw_stroke 0
+    setattribute _draw_centered 1
+
+    setattribute _draw_r 255
+    setattribute _draw_g 255
+    setattribute _draw_b 255
+    setattribute _draw_a 150
+
+    draw _self rect (_screen_resolution`0) (_screen_resolution`1)
+    setposition 0 -200
+    setattribute _draw_stroke 60
+    setattribute _draw_r 0
+    setattribute _draw_g 0
+    setattribute _draw_b 0
+
+    draw _self text "Game Paused"
+    setattribute _draw_stroke 32
+    setattribute _draw_centered 0
+    translate -100 70
+    draw _self text "[esc]: resume"
+    translate 0 40
+    draw _self text "[Q]: quit game"
+    translate 0 40
+    draw _self text "[P]: replay mode"
+End
+
+Receive "unpause"
+    draw _self clear
+End

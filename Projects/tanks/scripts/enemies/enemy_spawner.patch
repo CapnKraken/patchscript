@@ -1,0 +1,83 @@
+#=
+Spawns the enemies in a loose wave-based manner.
+If the enemy count gets low, it'll start spawning the next wave.
+=#
+
+Start
+    setvar spawn_x 0
+    setvar spawn_y 0
+
+    setglob enemy_count 0
+    setvar enemy_number_target 5
+
+    setvar enemy_spawn_delay 60
+
+    setvar wave_number 0
+	
+	# Randomize the spawn location of an enemy.
+	# They can come from all sides of the screen, always entering from out-of-bounds.
+	def choose_location
+		setvar spawn_edge {random 1 4}
+        If spawn_edge == 1
+            # left edge 
+            setvar spawn_x -520
+        Elif spawn_edge == 2
+            # right edge
+            setvar spawn_x 520
+        Elif spawn_edge == 3
+            # top edge
+            setvar spawn_y -400
+        Else 
+            # bottom edge
+            setvar spawn_y 400
+        Endif 
+
+        If spawn_edge < 3
+            setvar spawn_y {random -360 360}
+        Else
+            setvar spawn_x {random -480 480}
+        Endif
+	return
+
+    # Spawn some initial enemies.
+    Repeat 5
+        choose_location
+        instance "enemies/round_enemy" explosion_layer _x=spawn_x _y=spawn_y
+    Endrepeat
+
+    Loop
+        Repeat enemy_number_target
+            wait enemy_spawn_delay
+            choose_location
+
+            # 1 in 10 chance of spawning a spider
+            random 1 10 spider_chance
+
+            If spider_chance == 10
+                instance "enemies/spider_enemy" explosion_layer _x=spawn_x _y=spawn_y
+            Else
+                instance "enemies/round_enemy" explosion_layer _x=spawn_x _y=spawn_y
+            Endif
+        Endrepeat
+
+        # Wait until the player kills most of the enemies.
+        While enemy_count > 5
+            wait 5
+        Endwhile
+
+        # Raise the stakes for the next wave.
+        set wave_number ++
+        set enemy_number_target += 5
+        If enemy_spawn_delay > 5
+            set enemy_spawn_delay -= 5
+        Endif
+		
+		# The last two digits of your score represent your wave number.
+		set total_score ++
+        broadcast "score update"
+    Endloop
+End
+
+Receive "game over"
+    delete
+End

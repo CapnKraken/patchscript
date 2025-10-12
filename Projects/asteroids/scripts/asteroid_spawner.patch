@@ -1,0 +1,281 @@
+#=
+Object which controls the spawning of asteroids onto the screen.
+Can spawn with two modes.
+"main" mode lasts for the whole game, and handles the all of the management for the spawners.
+"worker" mode actually spawns an asteroid with specified size and speed parameters after showing a little graphical effect.
+
+Start with one asteroid which is of size 3.
+Once they are all clear, then start the next wave.
+=#
+
+Include basics
+
+# Asteroid spawner mode (main).
+START
+    IF mode != "main"
+        END
+    ENDIF
+
+    setattribute value_table []
+
+    def spawn_asteroid bulk init_vel
+        # Spawn the worker object, which will spawn the asteroid.
+
+        set asteroid_count += {get_value n=bulk}
+        instance "asteroid_spawner" world _ mode="worker" bulk=bulk init_vel=init_vel
+    return
+
+    def spawn_initial_asteroid
+        # Spawn the first asteroid either to the left or right of the player.
+        random 200 720 rand_x
+
+        IF {random 0 1} == 0
+            setvar rand_x (-rand_x)
+        ENDIF
+
+        # Use rand_y to decide where on the vertical axis the asteroid will spawn.
+        random -1080 1080 rand_y
+
+        setvar sz 200
+
+        get_value n=4
+
+        set asteroid_count += _return
+        set wave_remaining -= _return
+        instance "asteroid" world _ _x=rand_x _y=rand_y direction={random 1 360} velocity=init_vel _width=sz _height=sz tag="asteroid" bulk=4
+    return
+END
+
+# Asteroid spawner mode (main).
+START
+    IF mode != "main"
+        END
+    ENDIF
+
+    # Count for the total number of asteroids.
+    setattribute asteroid_count 0
+    setattribute init_vel 1
+
+    # Functions for obtaining how many total asteroids an asteroid with a certain bulk contains.
+    setattribute value_table [0, 0]
+    def calculate_next
+        # The 'length' variable in this function and the next one are actually the same variable. So they mess with each other.
+        setvar length (len value_table - 1)
+        getindex value_table length n
+        append value_table (3 * n  + 1)
+    return
+
+    # Get the value (total number of asteroids contained within) of an asteroid with bulk n.
+    def get_value n
+        setvar length (len value_table)
+        WHILE n > length
+            calculate_next
+            set length ++
+        ENDWHILE
+
+        #                      '`' is the array subscript operator
+        setvar _return (value_table`n)
+    return
+
+    # Initialize the value table with 5 elements.
+    get_value n=5
+
+    # Find the biggest value (in the value table) less than n.
+    def find_best_fit n
+        setvar length (len value_table - 1)
+        setvar max_value (value_table`length)
+
+        IF max_value < n
+            # If this is true, the game is requesting a larger asteroid than we have calculated the value for.
+            #   We need to append the next value to the table.
+
+            calculate_next
+            set length ++
+            getindex value_table length _return_value
+            setvar _return_index length
+
+            IF _return_value > n
+                set length --
+                getindex value_table length _return_value
+                setvar _return_index length
+            ENDIF
+        ELIF max_value == n
+            setvar _return_value n
+            setvar _return_index length
+        ELSE
+            # Step down until we find a value in the table less than or equal to the requested one.
+            WHILE max_value > n
+                set length --
+                getindex value_table length max_value
+            ENDWHILE
+
+            # _return_value is the actual value of the asteroid.
+            # _return_index is the index in the value table this value sits at.
+            setvar _return_value max_value
+            setvar _return_index length
+        ENDIF
+    return
+
+    # Spawn up to half the wave's asteroids at once.
+    def spawn_half
+        # spawn initial wave asteroids
+        setvar half_asteroids (wave_remaining / 2)
+
+        IF wave_remaining == 4
+            # Spawn a size 2 asteroid.
+
+            spawn_asteroid bulk=3 init_vel=init_vel
+            setattribute wave_remaining 0
+        ELIF wave_remaining < 4
+            # Go ahead and spawn the smallest size asteroid until the wave quota is reached.
+
+            REPEAT wave_remaining
+                spawn_asteroid bulk=2 init_vel=init_vel
+            ENDREPEAT
+            setattribute wave_remaining 0
+        ELSE
+            WHILE asteroid_count < half_asteroids
+                # Spawn new asteroid, figure out its value from the lookup table.
+                find_best_fit n=wave_remaining
+                set wave_remaining -= _return_value
+                spawn_asteroid bulk=_return_index init_vel=init_vel
+            ENDWHILE
+        ENDIF
+    return
+
+    # Set default values for game variables.
+    setattribute wave_quota 15
+    setattribute wave_remaining wave_quota
+    setattribute wave_destroyed 0
+    setattribute timer_delay 60
+
+    setattribute init_vel 0.5
+
+    spawn_initial_asteroid
+
+    setvar wave_count 0
+
+    # Main loop.
+    LOOP
+        wait 10
+
+        # Wait for you to destroy all of the asteroids.
+        
+        WHILE wave_destroyed < wave_quota
+            wait 10
+            REPEAT timer_delay
+                wait 10
+                # Start spawning more once it's down to a few stragglers.
+                IF asteroid_count <= 5
+                    jump timer_cancel
+                ENDIF
+            ENDREPEAT
+            
+            label timer_cancel
+            IF wave_remaining > 0
+                spawn_half
+            ENDIF
+            
+        ENDWHILE
+
+        # Set up the next wave.
+        setattribute wave_quota (wave_quota * 1.2// 1)
+        setattribute wave_remaining wave_quota
+        setattribute wave_destroyed 0
+        IF timer_delay > 30
+            set timer_delay -= 2
+            ENDIF
+
+        set wave_count ++
+        broadcast "wave finished" wave_count
+
+        set init_vel += 0.2
+
+        spawn_half
+    ENDLOOP
+END
+
+# Worker mode
+START
+    IF mode != "worker"
+        END
+    ENDIF
+
+    random -680 680 rand_x
+    random -500 500 rand_y
+
+    setposition rand_x rand_y
+
+    setattribute _draw_centered 1
+
+    setvar times (bulk * 50 / 5)
+    setvar step (255 // times)
+
+    # Graphical effect for spawning the asteroid.
+    REPEAT 5
+        setcolor_def color=COL_WHITE
+        setattribute _draw_a 255
+
+        setvar i 0
+        REPEAT times
+            wait 1
+
+            draw spawner_layer ellipse i i
+
+            # Decrement the draw color's alpha (transparency) value.
+            set _draw_a -= step
+
+            set i += 5
+        ENDREPEAT
+        setattribute _draw_a 0
+        draw spawner_layer ellipse i i
+    ENDREPEAT
+
+    # Draw a solid white expanding circle, instead of a fading one.
+    setcolor_def color=COL_WHITE
+    setvar i 0
+    REPEAT times
+        wait 1
+        draw spawner_layer ellipse i i
+        set i += 5
+    ENDREPEAT
+
+    # Spawn the asteroid.
+    random 1 360 dir
+    setvar sz ((bulk - 1)* 50 )
+    instance "asteroid" world _ _x=_x _y=_y direction=dir velocity=init_vel _width=sz _height=sz tag="asteroid" bulk=bulk
+
+    # Fade out this object's graphic.
+    setattribute _draw_a 255
+    REPEAT times
+        wait 1
+        draw spawner_layer ellipse i i
+        set _draw_a -= step
+        set i ++
+    ENDREPEAT
+
+    # Erase the circle we just made.
+    set i += 5
+    setattribute _draw_a 0
+    draw spawner_layer ellipse i i
+
+    delete
+END
+
+RECEIVE "game over"
+    delete
+END
+
+RECEIVE "Scene Change"
+    delete
+END
+
+RECEIVE "remove asteroid"
+    IF mode != "main"
+        END
+    ENDIF
+
+    # These are both attributes of this object.
+    set asteroid_count --
+    set wave_destroyed ++
+END

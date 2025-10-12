@@ -1,0 +1,197 @@
+Include std/collision
+Include std/basics
+
+#=
+Platformer character.
+=#
+
+START
+    setattribute tag "player"
+    setattribute is_respawning 0
+
+    # Set up player jumping variables.
+        setvar JUMP_HEIGHT 100
+        setvar TIME_TO_PEAK 30
+        setvar TIME_TO_DESCENT 20
+
+        setattribute jump_force (-2 * JUMP_HEIGHT / TIME_TO_PEAK)
+        setattribute jump_gravity (2 * JUMP_HEIGHT / TIME_TO_PEAK^2)
+        setattribute fall_gravity (2 * JUMP_HEIGHT / TIME_TO_DESCENT^2)
+
+    # Set up collider.
+        setattribute width 20
+        setattribute height 40
+
+        setattribute size [width, height]
+        setcollider width height
+
+    setattribute xv 0
+    setattribute yv 0
+
+    # Set up quality of life platformer features.
+        # Coyote timer lets you jump for a short time after falling off a ledge.
+        # This is helpful especially if your hitbox is narrower than your sprite, as in this game.
+        setattribute coyote_timer 0
+        setattribute coyote_limit 10
+
+        # Jump buffer gives you some leeway when pressing the jump button.
+        # So if you press it just before you land, you'll still jump.
+        setattribute jump_buffer_timer 0
+        setattribute jump_buffer_limit 5
+
+    # Set up the respawn position, just use the default position to begin with.
+        setattribute spawnX _x
+        setattribute spawnY _y
+
+    setattribute floor_gravity 1
+    setattribute is_on_ground 0
+    setattribute x_speed 3
+
+    # Go to the respawn point. Also temporarily set a flag so that it doesn't interact with other objects while respawning.
+    def respawn
+        setattribute is_respawning 1
+        setattribute xv 0
+        setattribute yv 0
+        setposition spawnX spawnY
+
+        setcollider 0 0
+        wait 1
+        setcollider width height
+        setattribute is_respawning 0
+    return
+
+    # Do this when colliding with a hazard or falling off the screen.
+    def player_death
+        broadcast "player death"
+        sound "pop"
+        set level --
+        broadcast "next level"
+        respawn
+    return
+
+    # Instantiate the sprite
+    setattribute player_sprite {instance "player_sprite" _self parent=_self}
+
+    # Main loop.
+    LOOP
+        wait 1
+
+        # Get and respond to input.
+        getkey RIGHT_INPUT right_pressed
+        getkey LEFT_INPUT left_pressed
+        getkey JUMP_INPUT jump_pressed
+
+        # Jump Buffer.
+        IF jump_pressed > 0
+            IF jump_buffer_timer <= jump_buffer_limit
+                set jump_buffer_timer ++
+            ENDIF
+        ELSE
+            setattribute jump_buffer_timer 0
+        ENDIF
+
+        # Horizontal motion.
+            setattribute xv 0
+            IF left_pressed > 0
+                set xv -= x_speed
+            ENDIF
+
+            IF right_pressed > 0
+                set xv += x_speed
+            ENDIF
+
+        # Apply gravity
+            IF is_on_ground == 1
+                # Use floor gravity if you're on the ground.
+                set yv += floor_gravity
+                setattribute coyote_timer 0
+            ELSE
+                IF yv > 0
+                    # Going down.
+                    set yv += fall_gravity
+                    set coyote_timer ++
+                ELSE
+                    # Going up.
+
+                    IF jump_pressed > 0
+                        set yv += jump_gravity
+                    ELSE
+                        set yv += fall_gravity
+                    ENDIF
+                ENDIF
+            ENDIF
+
+        # We don't have to do anything for x collision other than the default behavior provided by move_and_collide.
+        move_and_collide x=xv y=0 t="platform"
+
+        # We do have to do some stuff for y collision. Like snapping to the ground, seeing whether you can jump, etc.
+        IF {move_and_collide x=0 y=yv t="platform"} != -1
+            # Positive y velocity means you're going downwards.
+            IF yv > 0
+                IF is_on_ground == 0
+                    # If you're falling and not on the ground, do this stuff.
+
+                    # Snap to the ground upon landing.
+                    REPEAT (int yv)
+                        translate 0 1
+                        IF {test_tag_collision t="platform"} != -1
+                            # Move up 1 pixel so the player isn't stuck in the ground.
+                            translate 0 -1
+                            jump end_go_to_ground_repeat
+                        ENDIF
+                        
+                    ENDREPEAT
+                    LABEL end_go_to_ground_repeat
+                ENDIF
+
+                setattribute yv 0
+                setattribute is_on_ground 1
+            ELSE
+                # If you collide in the y direction and your yv was negative, you were traveling upwards.
+                # Which means you bonked your head on a ceiling. Ouchies.
+                setattribute yv 1
+            ENDIF
+        ELSE
+            setattribute is_on_ground 0
+        ENDIF
+
+        # Handle jumping. You can jump if you're on the ground OR you're falling and the coyote timer hasn't run out.
+        # And you have to have pressed the jump button within the jump buffer window.
+        #    Code was a lot simpler when it was just "hey, you on ground? Pressing jump key? Sweet. Jump."
+        #    ...but I'm told these quality of life things are worth it :D
+            IF (coyote_timer < coyote_limit or is_on_ground) and (jump_buffer_timer < jump_buffer_limit and jump_pressed > 0)
+                setattribute yv jump_force
+                sound "whoosh"
+                setattribute is_on_ground 0
+                setattribute coyote_timer 1000
+            ENDIF
+
+        # Player dies if he falls below the screen.
+        IF _y > 180
+            player_death
+        ENDIF
+
+        # Clamp function from basics.
+        clamp
+
+        IF not is_respawning
+            # Test for enemy collision
+            IF {test_tag_collision t="hazard"} != -1
+                player_death
+            ENDIF
+
+            # Test for coin collision
+            IF {test_tag_collision t="coin"} != -1
+                unicast _return "collect"
+            ENDIF
+        ENDIF
+    ENDLOOP
+END
+
+RECEIVE "next level"
+    respawn
+END
+
+RECEIVE "scene change"
+    delete
+END

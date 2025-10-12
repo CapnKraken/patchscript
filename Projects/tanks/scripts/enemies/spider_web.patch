@@ -1,0 +1,25 @@
+#=
+The spider web just hangs out on the field until it's deleted with a nearby explosion.
+It also slows the player down.
+=#
+
+Start
+    setsprite "spider_web"
+    set _width *= 2
+    set _height *= 2
+
+    # It's got a collider, so, it needs a tag (in this case).
+    setattribute tag "web"
+    setcollider 64 64
+End
+
+Receive "enemy explosion"
+    # _message_data contains the coordinates of the explosion in this case.
+    setvar distance_to_exp {distance _x _y (_message_data`0) (_message_data`1)}
+
+    If distance_to_exp <= 40
+        set total_score += 1000
+        broadcast "update score"
+        delete
+    Endif
+End

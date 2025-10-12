@@ -1,0 +1,22 @@
+# Large spike. Ouch!
+
+START
+    setcollider 16 16
+    setattribute tag "hazard"
+
+    setposition xpos ypos
+
+    setsprite "largespike"
+
+    setvar mintime 10
+    setvar maxtime 20
+    LOOP
+        random 0 1 _fliph
+        
+        wait {random mintime maxtime}
+    ENDLOOP
+END
+
+RECEIVE "next level"
+    delete
+END

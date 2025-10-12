@@ -1,0 +1,50 @@
+#=
+This object has the graphics for the player tank body and treads.
+
+Which behavior it performs is determined by its 'mode' instance variable.
+=#
+
+Start
+	# Little 'mode guard' construct which ends the script if the instance variable is not 'base'.
+    If mode != "base"
+        End
+    Endif
+
+    # Makes it so the treads rotate and move properly relative to the base.
+    setattribute _transform_children 1
+
+	# Spawn in the tread graphics.
+    setsprite "tank_body"
+    instance "player/player_graphics" _self _ mode="tread" _x=0 _y=12
+    instance "player/player_graphics" _self _ mode="tread" _x=0 _y=-12
+
+    Loop
+        wait 1
+        setattribute _rotation {getattribute player_object direction}
+    Endloop
+End
+
+Start
+    If mode != "tread"
+        End
+    Endif
+
+    setvar animation_frame 3
+    setsprite ("tread0")
+
+	# Animate the treads by switching their sprite once every five frames.
+    Loop
+        wait 1
+        If {getattribute player_object is_moving}
+            setvar animation_frame ((animation_frame - 1) % 3)
+			
+			# String concatenation is valid in expressions.
+            setsprite ("tread" + animation_frame)
+            wait 5
+        Endif
+    Endloop
+End
+
+Receive "game over"
+    delete
+End

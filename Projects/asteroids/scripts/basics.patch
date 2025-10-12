@@ -1,0 +1,146 @@
+#=
+This script does not make a useful object by itself, but is meant as a library of sorts.
+It is included in other objects to define helpful functions they can call.
+=#
+
+START
+    # If the object passes the edge of the screen, warp it to the other edge.
+    def wrap
+
+        setvar minx (-_screen_resolution`0 / 2)
+        setvar miny (-_screen_resolution`1 / 2)
+        setvar maxx (-minx)
+        setvar maxy (-miny)
+
+        setvar px _x
+        setvar py _y
+
+        IF px < minx
+            setposition maxx py
+        ELIF px > maxx
+            setposition minx py
+        ENDIF
+
+        IF py < miny
+            setposition px maxy
+        ELIF py > maxy
+            setposition px miny
+        ENDIF
+
+        return
+    
+    #=
+    Creates the screen-warping effect you see with the player and asteroids.
+    p: parent position (if the sprite is part of a container)
+    s: sprite position (these will be same if sprite is self-contained)
+    =#
+    def wrap_sprite px py x y
+        setvar sx (_screen_resolution`0)
+        setvar sy (_screen_resolution`1)
+        
+        setvar init_x x
+        setvar init_y y
+
+        # negate screen size
+        setvar n_sx ( 0 - sx )
+        setvar n_sy ( 0 - sy )
+
+        IF px > 0
+            translate n_sx 0
+            stamp world _self
+        ELSE
+            translate sx 0
+            stamp world _self
+        ENDIF
+
+        setposition init_x init_y
+
+        IF py > 0
+            translate 0 n_sy
+            stamp world _self
+        ELSE
+            translate 0 sy
+            stamp world _self
+        ENDIF
+
+        setvar px x
+
+        IF px > 0
+            translate n_sx 0
+            stamp world _self
+        ELSE
+            translate sx 0
+            stamp world _self
+        ENDIF
+
+        setposition init_x init_y
+
+        return
+    
+    # Tests if the object is colliding with any object with a specified tag attribute.
+    def test_tag_collision t
+        setvar collisions {collide _self all}
+        setvar cl (len collisions)
+
+        # no collision by default
+        setvar _return -1
+
+        IF cl == 0
+            jump ttag_endloop
+            ENDIF
+
+        setvar i 0
+        REPEAT cl
+            getattribute (collisions`i) tag o_t
+            IF o_t == t
+                # collision, tags match.
+                setvar _return i
+                jump ttag_endloop
+                ENDIF
+
+            set i ++
+            ENDREPEAT
+        
+        LABEL ttag_endloop
+    return
+
+    # Calculates the angle between two objects.
+    def angle_obj o1 o2
+        getattribute o1 _x x1
+        getattribute o2 _x x2
+        getattribute o1 _y y1
+        getattribute o2 _y y2
+
+        angle x1 y1 x2 y2 _return
+        return
+    
+    # Calculates how much you'd have to scale a sprite by in order for it to appear its original size.
+    def get_window_scale_factor
+        setvar _return (_screen_resolution`0 / _window_size`0)
+        return
+
+    def setcolor r g b a
+        setattribute _draw_r r
+        setattribute _draw_g g
+        setattribute _draw_b b
+        setattribute _draw_a a
+    return
+
+    def setcolor_def color
+        setvar clen (len color)
+        IF clen == 4
+            getindex color 0 _draw_r
+            getindex color 1 _draw_g
+            getindex color 2 _draw_b
+            getindex color 3 _draw_a
+        ELIF clen == 3
+            getindex color 0 _draw_r
+            getindex color 1 _draw_g
+            getindex color 2 _draw_b
+            setattribute _draw_a -1
+        ELSE
+            log "Color must have either 3 or 4 components. Given:" color
+            setcolor r=0 g=0 b=0 a=-1
+        ENDIF
+    return
+END

@@ -1,0 +1,58 @@
+#=
+Display the score during gameplay and "Game Over" when you die.
+=#
+
+Start
+    setglob total_score 0
+    setglob game_over 0
+
+    # Antialiasing only works for text currently
+    setattribute _draw_antialiased 1
+
+    # Font size 24, not centered.
+    setattribute _draw_stroke 24
+    setattribute _draw_centered 0
+
+    # Position the object ten pixels from the top left corner
+	# corner_x and corner_y are global variables.
+    setposition corner_x corner_y
+    translate 10 10
+
+    jump score_update_script
+End
+
+Receive "score update"
+Label score_update_script
+    draw _self clear
+    draw _self text ("Score: " + total_score)
+End
+
+Receive "game over"
+    stopscripts
+    setglob game_over 1
+    
+    # Font size 50, centered.
+    setattribute _draw_stroke 50
+    setattribute _draw_centered 1
+
+    draw _self clear
+    setvar score_text ("Final Score: " + total_score)
+    setposition 0 -20
+    draw _self text "Game Over"
+    setposition 0 20
+    draw _self text score_text
+
+    setposition 0 60
+    setattribute _draw_stroke 24
+    draw _self text "Press [z] to Try Again"
+
+	# Wait until z is pressed, then send the message to reset.
+    While {getkey "z"} != 2
+        wait 1
+    Endwhile
+    broadcast "reset game"
+End
+
+Receive "reset game"
+    delete
+End

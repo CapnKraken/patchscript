@@ -1,0 +1,219 @@
+#=
+This object draws the player sprite, shots, and thruster effects onto its canvas, and then loads them as sprites.
+It also draws the asteroids (which in this game take the form of large, colorful balls).
+
+The player graphics are drawn very small and then scaled up.
+The asteroids are according to the game resolution.
+=#
+
+Include basics
+
+# Define colors
+START
+    setglob COL_WHITE [255, 255, 255]
+    setglob COL_GRAY [200, 200, 200]
+    setglob COL_RED [255, 30, 30]
+    setglob COL_TEAL [30, 255, 255]
+END
+
+START
+    setattribute tag "sprite maker"
+
+    # Set up the position to start drawing at.
+    setvar x 28
+    setvar y 25
+    setvar _draw_centered 1
+    setposition x y
+    
+    # Main player sprite
+        setcolor_def color=COL_WHITE
+        setattribute _draw_stroke 0
+
+        draw _self ellipse 10 6
+
+        translate -2 4
+        draw _self rect 7 2
+
+        translate 0 -8
+        draw _self rect 7 2
+
+        setcolor_def color=COL_GRAY
+        translate -4 0
+        draw _self rect 2 2
+
+        translate 0 8
+        draw _self rect 2 2
+
+        translate 7 -4
+        setcolor_def color=COL_TEAL
+        draw _self ellipse 5 4
+
+        # store the player ship sprite
+        load sprite "player_ship" _self 0 0 50 50
+        draw _self clear
+
+    # thruster fire
+
+    # right back booster (turn left)
+        translate -10 4
+        setcolor_def color=COL_RED
+        draw _self ellipse 5 2
+
+        load sprite "right_back_booster" _self 0 0 50 50
+        draw _self clear
+
+    # left back booster (turn right)
+        translate 0 -8
+        draw _self ellipse 5 2
+
+        load sprite "left_back_booster" _self 0 0 50 50
+        draw _self clear
+
+    # front boosters (decelerate)
+        translate 12 0
+        draw _self ellipse 5 4
+        translate 0 8
+        draw _self ellipse 5 4
+
+        load sprite "front_boosters" _self 0 0 50 50
+        draw _self clear
+
+    # center back booster (accelerate)
+        translate -10 -4
+        draw _self ellipse 6 4
+
+        load sprite "center_back_booster" _self 0 0 50 50
+        draw _self clear
+
+    # player bullet
+        setvar x 0
+        setvar y 0
+        setposition x y
+        setattribute _draw_centered 0
+        setcolor_def color=COL_RED
+
+        # green, blue
+        setvar g 0
+        setvar b 63
+
+        REPEAT 8
+            setattribute _draw_g g
+            set g += 32
+            translate 2 0
+            draw _self rect 2 2
+        ENDREPEAT
+
+        REPEAT 4
+            setattribute _draw_b b
+            set b += 64
+            translate 2 0
+            
+            draw _self rect 2 2
+        ENDREPEAT
+        
+        load sprite "player_shot" _self 0 0 42 2
+        draw _self clear
+
+    # Initialize the ball number that we'll use later to draw the balls.
+    setattribute ball_spr_num 0
+END
+
+# This message is sent by a ball whenever it spawns in.
+RECEIVE "draw ball"
+    getindex _message_data 0 ball
+    getindex _message_data 1 ball_size
+
+    setvar bw ball_size
+
+    setvar off (ball_size / 2)
+    setattribute _draw_centered 1
+    setposition off off
+
+    # randomize color
+    random 0 255 r 
+    random 0 255 g 
+    random 0 255 b 
+
+    # There's no AND as of now so this'll do.
+    IF r < 100 and g < 100 and b < 100
+        random 1 3 choice
+        IF choice == 1
+            random 100 255 r
+        ELIF choice == 2
+            random 100 255 g
+        ELSE
+            random 100 255 b
+        ENDIF
+    ENDIF
+
+    # Determine variables for the gradient steps.
+    setvar step_dist (bw / 10)
+
+    setvar r_dist ((255 - r) / step_dist)
+    setvar g_dist ((255 - g) / step_dist)
+    setvar b_dist ((255 - b) / step_dist)
+
+    setcolor r=r g=g b=b a=-1
+
+    setvar i 0
+    REPEAT 10
+        
+        draw _self ellipse bw bw
+        move -45 (step_dist / 4)
+        set bw -= step_dist
+        set r += r_dist
+        set g += g_dist
+        set b += b_dist
+        IF r > 255
+            setvar r 255
+            ENDIF
+        IF g > 255
+            setvar g 255
+            ENDIF
+        IF b > 255
+            setvar b 255
+            ENDIF
+        
+        setcolor r=r g=g b=b a=-1
+
+        IF i == 7
+            # Set up the returned color, for the ball explosion
+                setvar draw_color [_draw_r, _draw_g, _draw_b]
+
+                copy draw_color final_color
+                # edit returned color to be brighter than the ball itself
+                setvar i 0
+                REPEAT 3
+                    setvar col_element (final_color`i)
+                    IF col_element > 150
+                        set col_element += 50
+                        IF col_element > 255
+                            setvar col_element 255
+                        ENDIF
+                    ENDIF
+                    setindex final_color i col_element
+                ENDREPEAT
+        ENDIF
+
+        set i ++
+    ENDREPEAT
+
+    # Decide what to call the loaded in sprite
+    # We only really need three ball sprites at a time, because a ball splits into three others when shot.
+    #   Once setsprite is used by an object, overwriting the loaded sprite it referenced won't change that object.
+    setvar _message_data (ball_spr_num + "ball")
+    setattribute ball_spr_num ((ball_spr_num + 1) % 3)
+
+    setvar bw ball_size
+    load sprite _message_data _self 0 0 bw bw
+    draw _self clear
+
+    append _message_data final_color
+
+    # Send a message back to the ball that requested the sprite.
+    unicast ball "sprite done" _message_data
+END
+
+RECEIVE "Scene Change"
+    delete
+END

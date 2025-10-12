@@ -1,0 +1,13 @@
+TODO
+    Saving a canvas should allow you to specify coordinates.
+    Better error detection/handling. Preferably it would never throw any python exceptions, just patchscript ones.
+    Web version, which you can run in a browser. I am not sure how the file structures would work with that.
+
+Maybe
+    Use opengl for drawing to speed that up, use shaders for per-pixel edits like color shifting.
+    Implement Patchscript in C or C++ using SDL and/or opengl for better performance.
+
+Bugs
+    Sometimes pausing the game will crash Patchscript (infinite loop somewhere?). Seems random and rare.
+        The bug does not occur when not using busy wait in my experience.
+    _transform_children does not work entirely properly- updating transform cause some previous transfomations to be cancelled (_width for example).

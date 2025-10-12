@@ -1,0 +1,6 @@
+# Just a box to damage the player.
+
+Start
+    setattribute tag "hazard"
+    setcollider width height
+End

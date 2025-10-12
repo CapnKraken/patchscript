@@ -1,0 +1,54 @@
+#=
+This script does not make a useful object by itself, but is meant as a library of sorts.
+It is included in other objects to define helpful functions they can call.
+=#
+
+START
+    # If the object passes the edge of the screen, clamp it to that edge.
+    def clamp
+        setvar minx (-_screen_resolution`0 / 2)
+        setvar miny (-_screen_resolution`1 / 2)
+        setvar maxx (-minx)
+        setvar maxy (-miny)
+
+        setvar px _x
+        setvar py _y
+
+        IF px < minx
+            setposition minx py
+        ELIF px > maxx
+            setposition maxx py
+        ENDIF
+
+        IF py < miny
+            setposition px miny
+        ELIF py > maxy
+            setposition px maxy
+        ENDIF
+    return
+
+    # Calculates the angle between two objects.
+    def angle_obj o1 o2
+        getattribute o1 _global_x x1
+        getattribute o2 _global_x x2
+        getattribute o1 _global_y y1
+        getattribute o2 _global_y y2
+
+        angle x1 y1 x2 y2 _return
+    return
+    
+    # Returns the distance between two objects
+    def distance_obj o1 o2
+        getattribute o1 _global_x x1
+        getattribute o2 _global_x x2
+        getattribute o1 _global_y y1
+        getattribute o2 _global_y y2
+
+        distance x1 y1 x2 y2 _return
+    return
+
+    # Calculates how much you'd have to scale a sprite by in order for it to appear its original size.
+    def get_window_scale_factor
+        setvar _return (_screen_resolution`0 / _window_size`0)
+    return
+END

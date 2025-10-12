@@ -1,0 +1,203 @@
+#=
+Like the root but for the editor scene.
+Spawns and manages the editor objects.
+=#
+
+START
+    # Spawn in the helper objects.
+        setattribute editor_canvas {instance "container" _self centered=0}
+        instance "editor/cursor" _self _
+        instance "editor/editor_ui" _self editor_ui
+
+    # Initialize ediot mode variables.
+        setglob editor_mode "Erase"
+        setglob editor_can_place_platform 1
+        setglob editor_spike_direction 0
+        setglob editor_level_number 1
+    
+    # Initialize the list of level elements
+        setattribute level_elements []
+
+    # Make sure the ui is displaying the correct thing.
+        unicast editor_ui "editor ui update"
+
+    # Take a level currently in the editor and save it to a file.
+    def save_level
+        string join filename "levels/" "l" editor_level_number ".txt"
+        setvar save_list []
+
+        setvar i 0
+        REPEAT (len level_elements)
+            setvar current_element (level_elements`i)
+
+            # I don't bother removing erased elements from the list. I just set a flag telling the save function to ignore them.
+            IF not {getattribute current_element is_dead}
+                # Add the element's serialized form to the data to write.
+                append save_list {getattribute current_element serialized}
+            ENDIF
+            set i ++
+        ENDREPEAT
+
+        save file filename save_list
+    return
+
+    # Load a level from a file to the editor.
+    def load_level
+        string join filename "levels/" "l" editor_level_number ".txt"
+        setattribute level_elements []
+        load file filename file_elements
+
+        setvar i 0
+        REPEAT (len file_elements)
+            getindex file_elements i obj_to_add
+
+            # Ignore blank lines.
+            IF obj_to_add != ""
+                # Ignore comments
+                IF obj_to_add`0 != "#" 
+                    instance "editor/editor_object" editor_canvas _ serialized=obj_to_add type="serialized"
+                ENDIF
+            ENDIF
+            set i ++
+        ENDREPEAT
+    return
+
+    LOOP
+        wait 1
+
+        # Just a glut of editor hotkeys.
+        # I could make a proper menu and such, but this is good enough for a proof of concept.
+        getkey "q" q
+        getkey "w" w
+        getkey "e" e
+        getkey "r" r
+        getkey "t" t
+        getkey "y" y
+        getkey "u" u
+        getkey "i" i
+        getkey "o" o
+        getkey "p" p
+        getkey "1" save
+        getkey "2" load
+        getkey "up" up
+        getkey "down" down
+        getkey "left" left
+        getkey "right" right
+
+        # These keys are for setting editor modes (i.e. what thing you're placing).
+        IF q == 2
+            # Erase
+            setglob editor_mode "Erase"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF w == 2
+            # platform
+            setglob editor_mode "Platform"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF e == 2
+            # Player spawnpoint
+            setglob editor_mode "Spawn Point"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF r == 2
+            # Flag
+            setglob editor_mode "Flag"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF t == 2
+            # Coin
+            setglob editor_mode "Coin"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF y == 2
+            # Big enemy
+            setglob editor_mode "Large Enemy"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF u == 2
+            # Small enemy
+            setglob editor_mode "Small Enemy"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF i == 2
+            # Big spike
+            setglob editor_spike_direction 0
+            setglob editor_mode "Large Spike"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF o == 2
+            # Small spike
+            setglob editor_spike_direction 0
+            setglob editor_mode "Small Spike"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ELIF p == 2
+            # Enemy director
+            setglob editor_mode "Enemy Director"
+            broadcast "editor mode change"
+            unicast editor_ui "editor ui update"
+        ENDIF
+
+        # The 1 and 2 keys are used for saving and loading, respectively.
+        IF save == 2
+            save_level
+        ELIF load == 2
+            broadcast "editor delete all"
+            wait 1
+            setattribute level_elements []
+            load_level
+        ENDIF
+
+        # Up and down are used to increase/decrease the current level number to save/load.
+        IF up == 2
+            set editor_level_number ++
+            unicast editor_ui "editor ui update"
+        ELIF down == 2 and editor_level_number > 0
+            set editor_level_number --
+            unicast editor_ui "editor ui update"
+        ENDIF
+
+        # Left and right are used to rotate spikes.
+        IF left == 2
+            set editor_spike_direction -= 90
+            broadcast "editor spike direction change"
+        ELIF right == 2
+            set editor_spike_direction += 90
+            broadcast "editor spike direction change"
+        ENDIF
+
+        IF editor_spike_direction > 270
+            setglob editor_spike_direction 0
+        ELIF editor_spike_direction < 0
+            setglob editor_spike_direction 270
+        ENDIF
+    ENDLOOP
+END
+
+# Received from the cursor object. When you click, you're either erasing or placing something.
+RECEIVE "editor mouse down"
+    IF editor_mode == "Platform"
+        IF editor_can_place_platform
+            # Start placing a platform at the cursor's position.
+            getattribute editor_cursor_obj _x cx
+            getattribute editor_cursor_obj _y cy
+
+            instance "editor/editor_object" editor_canvas _ _x=cx _y=cy type=editor_mode
+            setglob editor_can_place_platform 0
+        ENDIF
+    ELIF editor_mode != "Erase"
+        # Anything that isn't erase or a platform is placed the same way.
+        getattribute editor_cursor_obj _x cx
+        getattribute editor_cursor_obj _y cy
+        instance "editor/editor_object" editor_canvas _ _x=cx _y=cy type=editor_mode
+    ENDIF
+END
+
+RECEIVE "scene change"
+    delete
+END
+
+RECEIVE "editor add element"
+    append level_elements _message_data
+END

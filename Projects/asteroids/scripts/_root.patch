@@ -1,0 +1,143 @@
+#=
+Ahoy there! This is the root object. 
+The only object that is spawned in by the game engine initially is scripts/_root
+
+This game is a simple asteroids clone with colorful balls instead of asteroids.
+I made this change because circles are a lot easier to draw than asteroids. Sue me ;D
+
+Shoot a ball and it splits into three! Don't get hit.
+The screen wraps (or at least pretends to), so that's cool too I suppose.
+=#
+
+
+START
+    # Set up some important system variables.
+    setattribute _ignore_pause 1
+    configure hide_mouse 1
+    configure screen_resolution 1440 960
+    setattribute is_fullscreen 0
+    configure fullscreen is_fullscreen
+    configure caption "Space Balls"
+    configure apply
+
+    setattribute tag "_root"
+
+    # load blank sprite
+        # initialize the canvas
+        draw _self rect 0 0
+
+        # load a blank sprite with no dimensions
+        load sprite "blank" _self 0 0 0 0
+
+    # Load the first scene, "Title"
+    setglob _scene "Title"
+    broadcast "scene change" _scene
+END
+
+RECEIVE "game over"
+    # Upon game over, unload all 3 ball sprites.
+    # These are called 0ball, 1ball, and 2ball, so we can iterate 0-3 and unload them easily.
+
+    setvar i 0
+    REPEAT 3
+        unload sprite (i + "ball")
+        set i ++
+    ENDREPEAT
+
+    # Wait 5 seconds between game over and returning to the title screen.
+    wait 300
+
+    setglob _scene "Title"
+    broadcast "scene change" _scene
+END
+
+#=
+This game uses a 'scene' pattern, which I used a bunch back in the Scratch days and it treated me well.
+It is useful for creating several distinct game states with very different behavior from one another.
+All you have to do is have the objects you want to apply this to stop their scripts 
+    (or delete themselves if not persistent) upon receiving the 'scene change' message.
+    Then, split into scene-specific functionality using the content of _message_data.
+    Additionally, include a 'scene guard' at the top of any START or other RECEIVE hats.
+    This is just an IF statement that verifies if the scene is the one you want it to be.
+=#
+RECEIVE "scene change"
+    # When the scene changes, stop all other running scripts in the object.
+    stopscripts
+
+    # Fork creates a new concurrently running script at the specified position, 
+    #   in this case the labels _scene_game or _scene_title.
+    IF _message_data == "Game"
+        fork _scene_game
+    ELIF _message_data == "Title"
+        fork _scene_title
+    ENDIF
+
+    setglob _paused 0
+
+    # control quitting the game and toggling fullscreen
+    LOOP
+        wait 1
+
+        getkey "escape" exit_key
+        IF exit_key == 2 and _scene == "Title"
+            stopall
+        ENDIF
+
+        getkey "f11" fullscreen_key
+        IF fullscreen_key == 2
+            IF is_fullscreen == 0
+                setattribute is_fullscreen 1
+                configure window_size 1440 1080
+            ELSE
+                setattribute is_fullscreen 0
+                configure window_size 480 360
+            ENDIF
+            
+            configure fullscreen is_fullscreen
+            configure apply
+        ENDIF
+    ENDLOOP
+END
+
+LABEL _scene_game
+    # Instantiate the graphics
+    setglob sprite_maker {instance "sprite_maker" _self name="Sprite Artist"}
+
+    # Start the world container, as a glob so other objects can access it.
+    setglob world {instance "world" _self}
+
+    # p_world is just a container to hold the player. 
+    #   It's layered above the main world layer, so the player sprite will be rendered above the asteroids.
+    setglob p_world {instance "container" _self mode=""}
+
+    # Spawn the actual player object.
+    setglob player {instance "player_container" p_world name="Player"}
+
+    # Set up some more render layers, this time for graphical effects.
+    setglob particle_explosion_count 0
+    setglob particle_layer {instance "container" _self mode="particles"}
+    setglob spawner_count 0
+    setglob spawner_layer {instance "container" _self mode="spawners"}
+
+    # Create the UI objects for the HUD (score/lives), and "Wave Complete" text
+    instance "ui" _self _ name="ui" mode="hud"
+    instance "ui" _self _ name="wave_text" mode="wave text"
+
+    instance "pause_menu" _self _
+
+    # Load asteroid explosion sounds which play for 500 milliseconds each.
+    load sound "smallexp" "rock_small_exp.ogg" 500
+    load sound "medexp" "rock_medium_exp.ogg" 500
+    load sound "largexp" "rock_large_exp.ogg" 500
+
+    # Start the asteroids spawning.
+    instance "asteroid_spawner" world _ mode="main"
+END
+
+LABEL _scene_title
+    # All it has to do here is spawn in the title screen object.
+    instance "ui" _self _ mode="title"
+END
+
+
+

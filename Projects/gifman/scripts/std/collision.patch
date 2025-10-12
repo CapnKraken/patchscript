@@ -1,0 +1,50 @@
+#=
+Standard functions as regards collision testing.
+The file contains two functions:
+    test_tag_collision, which allows an object to test for collided objects with a specific tag attribute.
+    move_and_collide, which moves an object and resets its position if it collided with a tag.
+=#
+
+START
+
+    # Tests if the object is colliding with any object with a specified tag attribute.
+    def test_tag_collision t
+        setvar collisions {collide _self all}
+        setvar cl (len collisions)
+
+        # no collision by default
+        setvar _return -1
+
+        IF cl == 0
+            jump ttag_endloop
+        ENDIF
+
+        setvar i 0
+        REPEAT cl
+            getindex collisions i o
+            getattribute o tag o_tag
+            IF o_tag == t
+                # Collision, tags match. Return the collided object's ID.
+                setvar _return o
+                jump ttag_endloop
+            ENDIF
+
+            set i ++
+        ENDREPEAT
+        
+        LABEL ttag_endloop
+    return
+
+    # Move a specified amount, and if you collide with the specified tag, reset position.
+    def move_and_collide x y t
+        setvar init_x _x
+        setvar init_y _y
+
+        translate x y
+
+        IF {test_tag_collision t=t} != -1
+            setposition init_x init_y
+        ENDIF
+    return
+
+END

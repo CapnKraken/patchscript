@@ -1,0 +1,81 @@
+#=
+Display the player sprite.
+It tracks its state internally and changes it based on what the parent object is doing.
+=#
+
+START
+    setattribute state "idle"
+    setattribute _fliph 0
+
+    setsprite "player_idle"
+
+    setvar run_timer 0
+    setvar run_animation_delay 5
+    LOOP
+        wait 1
+
+        # Determine which direction to face.
+            getkey "right" right_pressed
+            getkey "left" left_pressed
+            setvar dirchange 0
+            IF right_pressed == 2
+                set dirchange ++
+            ENDIF
+            IF left_pressed == 2
+                set dirchange --
+            ENDIF
+
+            IF dirchange > 0
+                setattribute _fliph 0
+            ELIF dirchange < 0
+                setattribute _fliph 1
+            ENDIF
+        
+
+        # Do different things depending on whether or not the player is on the ground.
+        IF {getattribute parent is_on_ground}
+
+            # Simple check to see if you're moving horizontally.
+            IF int {getattribute parent xv} == 0
+                setattribute state "idle"
+            ELSE
+                setattribute state "running"
+            ENDIF
+        ELSE
+        
+            # If not on ground, can be either jumping or falling.
+            IF {getattribute parent yv} > 0
+                setattribute state "falling"
+            ELSE
+                setattribute state "jumping"
+            ENDIF
+        ENDIF
+
+        IF state == "idle"
+            setsprite "player_idle"
+        ELIF state == "running"
+            # Determine which running frame to display, if the player is running.
+
+            setvar run_timer ((run_timer + 1) % (run_animation_delay * 4))
+            IF run_timer < run_animation_delay
+                setsprite "player_run1"
+            ELIF run_timer < (run_animation_delay * 2)
+                setsprite "player_run2"
+            ELIF run_timer < (run_animation_delay * 3)
+                setsprite "player_run1"
+            ELSE
+                setsprite "player_run3"
+            ENDIF
+        ELIF state == "falling"
+            setsprite "player_fall"
+        ELIF state == "jumping"
+            setsprite "player_jump"
+        ENDIF
+
+        IF state != "running"
+            # This makes it so the run animation will always start on the same frame.
+            setvar run_timer 0
+        ENDIF
+    ENDLOOP
+
+END
