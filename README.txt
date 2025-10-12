@@ -12,10 +12,10 @@ Usage:
 Command line:
 -Navigate to the directory with the executables (or python scripts if you're using those)
 
->patchscript					| same as clicking the exe, pulls up a dialog to select a project.
->patchscript Projects/_default			| run a specific project.
->patchscript new project_name			| create a new project in the Projects folder, as a copy of _default.
->patchscript new project_name project_source	| same as new, but you specify the project data to copy over.
+>patchscript                                    | same as clicking the exe, pulls up a dialog to select a project.
+>patchscript Projects/_default	                | run a specific project.
+>patchscript new project_name	                | create a new project in the Projects folder, as a copy of _default.
+>patchscript new project_name project_source    | same as new, but you specify the project data to copy over.
 
 -These commands can also be used with 'ps_console' instead of 'patchscript'
 -If you're running the python source directly, the command line arguments still work.
