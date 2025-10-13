@@ -19,8 +19,8 @@ Take a look inside any of the sample projects to get a sense for how things work
 | Command | Function |
 | ------- | -------- |
 | \>patchscript | same as clicking the exe, pulls up a dialog to select a project. |
-| \>patchscript Projects/_default | run a specific project. |
-| \>patchscript new project_name | create a new project in the Projects folder, as a copy of _default. |
+| \>patchscript projects/_default | run a specific project. |
+| \>patchscript new project_name | create a new project in the root directory, as a copy of _default. |
 | \>patchscript new project_name project_source | same as new, but you specify the project data to copy over. |
 
 -These commands can also be used with 'ps_console' instead of 'patchscript' if you want console output.  

@@ -13,7 +13,7 @@ try:
     #                       pyinstaller thing 
     img_path = os.path.join(sys._MEIPASS, "Patch_icon.png")
 except:
-    img_path = "Icon/Patch_icon.png"
+    img_path = "icon/Patch_icon.png"
 gobj.sprites['_icon'] = pygame.image.load(img_path)
 
 root_path = 'scripts/_root.patch'
@@ -22,15 +22,17 @@ root_path = 'scripts/_root.patch'
 # Allow you to specify a project from the command line or create a new project.
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'new':
+        current_directory = os.getcwd()
+
         # Now we want to make a new project.
-        project_name = "Untitled"
+        project_name = "untitled"
         if len(sys.argv) > 2:
             project_name = sys.argv[2]
         
         # Make sure you're not overwriting anything
         counter = 0
         orig_name = project_name
-        while os.path.isdir(f"Projects/{project_name}"):
+        while os.path.isdir(project_name):
             counter += 1
 
             # Sets the project name to {given name}1, 2, 3, etc.
@@ -38,13 +40,22 @@ if len(sys.argv) > 1:
 
         # Allow specification of project to copy over to new.
         source_proj = "_default"
-        if len(sys.argv) > 3 and os.path.isdir(f"Projects/{sys.argv[3]}"):
+        if len(sys.argv) > 3 and os.path.isdir(sys.argv[3]):
             source_proj = sys.argv[3]
-
-
-        shutil.copytree(f"Projects/{source_proj}", f"Projects/{project_name}")
         
-
+        try:
+            shutil.copytree(current_directory + "/"+source_proj, current_directory+"/"+project_name)
+        except FileNotFoundError:
+            # If there's no _default project in the root directory.
+            dir = current_directory+"/"+project_name+"/scripts"
+            os.makedirs(dir)
+            with open(dir+"/_root.patch", "w") as file:
+                file.write("# Empty Project.")
+        except OSError as e:
+            print(f"Improper file path.\n{e}")
+        except Exception as e:
+            print(f"Oh no! Something went wrong!\n{e}")
+        
         sys.exit()
     else:
         # Switch to the specified project.
@@ -67,7 +78,11 @@ while not has_root:
         tkroot = tkinter.Tk()
         tkroot.withdraw()
 
-        directory_path = filedialog.askdirectory(initialdir="Projects")
+        # See if there's a project folder, otherwise look at the root folder.
+        if os.path.isdir(os.getcwd() + "/projects"):
+            directory_path = filedialog.askdirectory(initialdir=os.getcwd()+"/projects")
+        else:
+            directory_path = filedialog.askdirectory(initialdir=os.getcwd())
 
         try:
             os.chdir(directory_path)
