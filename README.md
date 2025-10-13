@@ -10,7 +10,7 @@ Take a look inside any of the sample projects to get a sense for how things work
 
 -Click one of the executables, then select a project folder. Patch will run the program defined in the folder.  
 -ps_console.exe is the same as patchscript.exe; it just shows the console, allowing you to see the output of 'log' as well as error messages.  
--If you're not on Windows, the python source code is provided. You'll need the pygame library installed.  
+-If you're not on Windows (or prefer not to use the executables), the python source code is provided. You'll need the pygame library installed.  
 
 ## Command line
 
@@ -43,4 +43,18 @@ Take a look inside any of the sample projects to get a sense for how things work
 -For example, 'If' statements are converted to conditional jumps (same with loops).  
 -When error messages give you line numbers, they're referring to the line numbers as displayed in this file, so it's invaluable for debugging.  
 	
-	
+## Contents
+
+| Item | Description |
+| ----- | ----- |
+| _default | Default project. Creating a new project from the command line will copy whatever's in this folder. If it's missing, you'll just get a blank new project. |
+| docs | Contains a cheatsheet for all scripting commands, as well as some more in-depth documentation that isn't finished yet. |
+| icon | Patchscript's window/taskbar icon. If you want to use the batch file to build the executables yourself, this folder needs to be here. |
+| projects | The default directory for where Patch looks for projects when you run it with no arguments. If this folder isn't there, it'll use the root directory. |
+| _main.py | The main game loop for Patch resides here. This is the file to run if you're using the Python files. |
+| gamemodule.py | Contains most of Patch's functionality (everything but setup and the main loop). |
+| autopackage.bat | Script to automate the packaging of the python scripts into the executables. You need pyinstaller if you're going to use this. |
+| License.txt | Zlib license. |
+| Patchscript_NPP.xml | Custom code highlighting for Notepad++ |
+| *.exe | Windows executables, made using pyinstaller. They're the same, except ps_console will give you debug output. |
+| README.md | I hope you know, having read this far... |
