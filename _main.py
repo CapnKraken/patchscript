@@ -46,10 +46,13 @@ if len(sys.argv) > 1:
         try:
             shutil.copytree(current_directory + "/"+source_proj, current_directory+"/"+project_name)
         except FileNotFoundError:
-            # If there's no _default project in the root directory.
-            dir = current_directory+"/"+project_name+"/scripts"
-            os.makedirs(dir)
-            with open(dir+"/_root.patch", "w") as file:
+            # If there's no _default project in the root directory, create an empty skeleton project folder.
+            dirs = ['scripts', 'audio', 'visuals', 'fonts', 'data']
+
+            for item in dirs:
+                os.makedirs(f"{current_directory}/{project_name}/{item}")
+
+            with open(f"{current_directory}/{project_name}/scripts/_root.patch", "w") as file:
                 file.write("# Empty Project.")
         except OSError as e:
             print(f"Improper file path.\n{e}")
