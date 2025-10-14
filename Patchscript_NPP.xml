@@ -33,7 +33,7 @@
             <Keywords name="Keywords3">set setvar setattribute setglob setindex getindex setposition translate move string join split merge append remove insert copy setmask setcollider</Keywords>
             <Keywords name="Keywords4">label jump stopscripts stopall delete instance fork adopt kidnap changelayer wait broadcast unicast</Keywords>
             <Keywords name="Keywords5">random angle distance collide maskcollide getkey getattribute getglob eval</Keywords>
-            <Keywords name="Keywords6">draw stamp colorshift load unload sprite sound file font save canvas setsprite updatesprite music text clear rect polygon line log</Keywords>
+            <Keywords name="Keywords6">draw stamp colorshift load unload sprite sound file font save canvas setsprite updatesprite music text clear rect ellipse polygon line log</Keywords>
             <Keywords name="Keywords7">configure fullscreen screen_resolution target_framerate window_size hide_mouse caption apply</Keywords>
             <Keywords name="Keywords8"></Keywords>
             <Keywords name="Delimiters">00&quot; 01 02&quot; 03( 04 05) 06{ 07 08} 09[ 10 11] 12 13 14 15 16 17 18 19 20 21 22 23</Keywords>
