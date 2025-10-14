@@ -207,6 +207,9 @@ RECEIVE "scene change"
 
     # Initiate the bleeps and bloops.
     music "gifman_tune.ogg" 0
+	
+	# Makes sure the music will play, even if the player had previously quit the game via the pause menu.
+	music resume
 
     instance "level_loader" _self _
 
