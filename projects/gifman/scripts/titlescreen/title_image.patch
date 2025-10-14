@@ -5,7 +5,6 @@ START
     setvar x _x
     setvar y _y
 
-    #append _x 500 600 700
     setvar sinecurve 0
 
     LOOP
