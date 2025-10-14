@@ -1,18 +1,27 @@
 Start
-    def setcolor r g b
-        setattribute _draw_r r
-        setattribute _draw_g g
-        setattribute _draw_b b
-        setattribute _draw_a 255
-        setvar _return [r, g, b, 255]
-    return
+    setvar color [255, 255, 255]
+	setattribute _draw_r (color`0)
+	setattribute _draw_g (color`1)
+	setattribute _draw_b (color`2)
 
     setattribute _draw_centered 1
     setattribute _draw_antialiased 1
     setattribute _draw_stroke 40
-    setcolor r=255 g=255 b=255
     
     setposition 240 180
+	
+	load file "message.txt" file_contents
 
-    draw _self text "Welcome to Patchscript!"  
+	If file_contents
+		draw _self text (file_contents`0)
+	Else
+		draw _self text "There is no message :("
+	Endif
+	
+	Loop
+		wait 1
+		If {getkey "escape"} > 0
+			stopall
+		Endif
+	Endloop
 End
