@@ -1,0 +1,30 @@
+# Control this with arrow keys
+Start
+	load sprite "cardinal" "graphics.png" 32 0 32 32
+	setsprite "cardinal"
+
+	setvar speed 5
+	
+	Loop
+		wait 1
+		
+		setvar horizontal_motion 0
+		setvar vertical_motion 0
+		
+		If {getkey "left"} > 0
+			set horizontal_motion --
+			Endif
+		If {getkey "right"} > 0
+			set horizontal_motion ++
+			Endif
+		If {getkey "up"} > 0
+			set vertical_motion --
+			Endif
+		If {getkey "down"} > 0
+			set vertical_motion ++
+			Endif
+		
+		# 'translate' moves an object along the x and y axes.
+		translate (horizontal_motion * speed) (vertical_motion * speed)
+	Endloop
+End

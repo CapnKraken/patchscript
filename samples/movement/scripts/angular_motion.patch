@@ -1,0 +1,35 @@
+# Control this one with WASD
+Start
+	load sprite "angular" "graphics.png" 0 0 32 32
+	setsprite "angular"
+	setattribute _rotation -90
+
+	setvar speed 5
+	setvar rotation_speed 5
+	
+	Loop
+		wait 1
+		
+		setvar angular_motion 0
+		setvar vertical_motion 0
+		
+		If {getkey "w"} > 0
+			set vertical_motion ++
+			Endif
+		If {getkey "s"} > 0
+			set vertical_motion --
+			Endif
+		If {getkey "a"} > 0
+			set angular_motion --
+			Endif
+		If {getkey "d"} > 0
+			set angular_motion ++
+			Endif
+		
+		# '_rotation' determines the orientation of the object's sprite.
+		set _rotation += (angular_motion * rotation_speed)
+		
+		# 'move' moves an object in a direction (in degrees) and a speed.
+		move _rotation (vertical_motion * speed)
+	Endloop
+End
