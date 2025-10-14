@@ -1,0 +1,78 @@
+# Demonstrate some of Patch's drawing functions.
+
+Start
+	configure caption "Drawing Demo"
+	configure apply
+
+    def setcolor c
+		If len c >= 3
+			setattribute _draw_r (c`0)
+			setattribute _draw_g (c`1)
+			setattribute _draw_b (c`2)
+		Endif
+	return
+	
+	# Get a random position within the screen bounds
+	def random_pos
+		setvar rx {random 0 (_screen_resolution`0)}
+		setvar ry {random 0 (_screen_resolution`1)}
+		setvar _return [rx, ry]
+		setposition rx ry
+	return
+	
+	def random_color
+		setvar min 50
+		setvar max 255
+		setcolor c=[{random min max}, {random min max}, {random min max}]
+	return
+	
+	setvar prev_point [0,0]
+	setvar min_size 10
+	setvar max_size 100
+	
+	Loop
+		Repeat 5
+			Repeat 5
+				wait 5
+				
+				# Line	
+				random_color
+				
+				setattribute _draw_centered 0
+				setattribute _draw_stroke {random 2 10}
+				setvar point1 prev_point
+				setvar point2 {random_pos}
+				draw _self line (point1`0) (point1`1) (point2`0) (point2`1)
+				
+				setvar prev_point point2
+			Endrepeat
+			
+			# Rect
+			random_color
+			random_pos
+			
+			setattribute _draw_stroke {random 0 5}
+			setattribute _draw_centered 1
+			draw _self rect {random min_size max_size} {random min_size max_size}
+		Endrepeat
+		
+		# Ellipse
+		random_color
+		random_pos
+		
+		setattribute _draw_stroke {random 0 5}
+		setattribute _draw_centered 1
+		draw _self ellipse {random min_size max_size} {random min_size max_size}
+	Endloop
+End
+
+# Quit the project on 'escape'
+Start
+	Loop
+		wait 1
+		If {getkey "escape"} == 2
+			stopall
+		Endif
+	Endloop
+End
+
