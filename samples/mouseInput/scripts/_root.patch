@@ -1,0 +1,11 @@
+Start
+	instance "cursor" _self _ 
+	
+	# Control quitting the project.
+	Loop
+		wait 1
+		If {getkey "escape"} == 2
+			stopall
+		Endif
+	Endloop
+End

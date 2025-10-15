@@ -1,0 +1,30 @@
+# Here's where the mouse input is being tested.
+
+Start
+	# Load in the sound, which is around 300 milliseconds long.
+	load sound "boom" "boom.ogg" 300
+	
+	Loop
+		wait 1
+		If {getkey "mouse_left"} == 2
+			setvar dir 0
+			setvar count {random 8 16}
+			setvar dir_change (360 / count)
+			
+			setvar spawn_x (_mouse_position`0)
+			setvar spawn_y (_mouse_position`1)
+			
+			setvar color {random 100 255}
+			Repeat 2
+				append color {random 100 255}
+			Endrepeat
+			
+			sound "boom"
+			
+			Repeat count
+				instance "firework" _self _ _x=spawn_x _y=spawn_y dir=dir color=color
+				set dir += dir_change
+			Endrepeat
+		Endif
+	Endloop
+End
