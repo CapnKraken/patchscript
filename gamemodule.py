@@ -2476,6 +2476,9 @@ class scriptsystem:
         if obj == 0:
             error("Runtime", "Invalid collision.", "No such object to collide.",ph)
             return
+        if not obj.collision_rect:
+            error("Runtime", "Invalid collision.", "Object does not have a collider.",ph)
+            return
         
         match splitline[2]:
             case 'all':
