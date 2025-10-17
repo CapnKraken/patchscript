@@ -1252,7 +1252,7 @@ class scriptsystem:
 
                             addlines += 2
                             mylist.append(self.fixline(f"{expr_string}", currentfunc, currentfuncvars))
-                            mylist.append(self.fixline(f"set {expr_var} _return", currentfunc, currentfuncvars))
+                            mylist.append(self.fixline(f"setvar {expr_var} _return", currentfunc, currentfuncvars))
 
                             strline = strline.replace(replace_string, expr_var, 1)
                             i -= (expr_endpoints[1] - expr_endpoints[0])
@@ -1292,7 +1292,7 @@ class scriptsystem:
                             # then an unconditional jump back to the top
 
                             rep_var = f"_r{len(scope_stack)}{currentfunc}_"
-                            newline = f"set {rep_var} {splitline[1]}"
+                            newline = f"setvar {rep_var} {splitline[1]}"
                             jumpline = f'jump x if {rep_var} 0 <='
                             scope_stack.append(linenum + addlines)
 
@@ -2476,7 +2476,7 @@ class scriptsystem:
         if obj == 0:
             error("Runtime", "Invalid collision.", "No such object to collide.",ph)
             return
-        if not obj.collision_rect:
+        if obj.collision_rect == None:
             error("Runtime", "Invalid collision.", "Object does not have a collider.",ph)
             return
         
