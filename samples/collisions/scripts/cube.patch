@@ -1,0 +1,60 @@
+# Either a cube that follows the mouse or stands still for collision.
+
+#= 
+The still cube only has a collider, but the moving cube actually handles the collisions.
+Both cubes require the instance attribute 'follow_mouse'.
+Only the moving one requires the instance attribute 'other_cube'.
+=#
+
+Start
+	setattribute _width 50
+	setattribute _height 50
+	
+	def set_red
+		setattribute _draw_r 255
+		setattribute _draw_g 0
+		setattribute _draw_b 0
+		setsprite rect
+	return
+	
+	def set_white
+		setattribute _draw_r 255
+		setattribute _draw_g 255
+		setattribute _draw_b 255
+		setsprite rect
+	return
+	
+	def test_collisions
+		setvar _return 0
+		
+		If {collide _self other_cube}
+			setvar _return 1
+		# 'ln' is a global variable defined in 'line.patch'
+		Elif {collide _self line (ln`0) (ln`1) (ln`2) (ln`3)}
+			setvar _return 1
+		Endif
+	return
+	
+	set_white
+	
+	# Need this in order to register collisions.
+	setcollider _width _height
+	
+	# an instance attribute (see _root)
+	If follow_mouse
+		Loop
+			wait 1
+			
+			# Follow the mouse
+			setposition (_mouse_position`0) (_mouse_position`1)
+			
+			# The moving cube will change color if it is colliding.
+			If {test_collisions}
+				set_red
+			Else
+				set_white
+			Endif
+		Endloop
+	Endif
+End
+

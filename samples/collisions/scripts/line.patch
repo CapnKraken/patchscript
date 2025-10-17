@@ -1,0 +1,90 @@
+# Draws a line and saves its coordinates in a global variable so the cube can collide with it.
+
+Start
+	setglob ln [0, 0, 0, 0]
+
+	setattribute x1 0
+	setattribute x2 (_screen_resolution`0)
+	
+	setattribute y1 0
+	setattribute y2 (_screen_resolution`1)
+	
+	setattribute speed 5
+	
+	# Start the other scripts
+	fork first_coords
+	fork second_coords
+	
+	setattribute _draw_r 255
+	setattribute _draw_g 255
+	setattribute _draw_b 255
+	setattribute _draw_stroke 5
+	
+	Loop
+		wait 1
+		setglob ln [x1, y1, x2, y2]
+		
+		draw _self clear
+		draw _self line (ln`0) (ln`1) (ln`2) (ln`3)
+	Endloop
+End
+
+# Control the attributes x1 and y1
+Label first_coords
+	Loop
+		Repeat (_screen_resolution`0 // speed)
+			wait 1
+			set x1 += speed 
+		Endrepeat
+		setattribute x1 (_screen_resolution`0)
+		
+		Repeat (_screen_resolution`1 // speed)
+			wait 1
+			set y1 += speed 
+		Endrepeat
+		setattribute y1 (_screen_resolution`1)
+		
+		Repeat (_screen_resolution`0 // speed)
+			wait 1
+			set x1 -= speed 
+		Endrepeat
+		setattribute x1 0
+		
+		Repeat (_screen_resolution`1 // speed)
+			wait 1
+			set y1 -= speed 
+		Endrepeat
+		setattribute y1 0
+	Endloop
+End
+
+# Control the attributes x2 and y2
+Label second_coords
+	Loop
+		Repeat (_screen_resolution`0 // speed)
+			wait 1
+			set x2 -= speed 
+		Endrepeat
+		setattribute x2 0
+		
+		Repeat (_screen_resolution`1 // speed)
+			wait 1
+			set y2 -= speed 
+		Endrepeat
+		setattribute y2 0
+		
+		Repeat (_screen_resolution`0 // speed)
+			wait 1
+			set x2 += speed 
+		Endrepeat
+		setattribute x2 (_screen_resolution`0)
+		
+		Repeat (_screen_resolution`1 // speed)
+			wait 1
+			set y2 += speed 
+		Endrepeat
+		setattribute y2 (_screen_resolution`1)
+	Endloop
+End
+
+

@@ -1,0 +1,21 @@
+
+
+Start
+	# 'color' is an instance attribute defined by cursor.
+	setattribute _draw_r (color`0)
+	setattribute _draw_g (color`1)
+	setattribute _draw_b (color`2)
+	setattribute _width 10
+	setattribute _height 10
+	
+	setsprite ellipse
+	
+	# 'dir' is another instance attribute.
+	setvar speed 10
+	While speed > 0.5
+		wait 1
+		move dir speed
+		set speed *= 0.9
+	Endwhile
+	delete
+End

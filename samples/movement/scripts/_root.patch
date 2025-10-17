@@ -1,0 +1,26 @@
+# Simple demonstration of key input and motion.
+
+Start
+	configure caption "Movement Demo"
+	configure apply
+
+	# Center the root on the screen
+	setposition (_screen_resolution`0//2) (_screen_resolution`1//2)
+	
+	# Draw a white background
+	setattribute _draw_r 255
+	setattribute _draw_g 255
+	setattribute _draw_b 255
+	draw _self rect (_screen_resolution`0) (_screen_resolution`1)
+
+	instance "cardinal_motion" _self _ _x=100
+	instance "angular_motion" _self _ _x=-100
+	
+	# Close the window if escape is pressed.
+	Loop
+		wait 1
+		If {getkey "escape"} == 2
+			stopall
+		Endif
+	Endloop
+End
