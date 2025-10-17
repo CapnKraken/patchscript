@@ -1,0 +1,20 @@
+#=
+Demonstrate line collision and single-object collision.
+Colliding with all other objects is also possible.
+=#
+
+Start
+	configure caption "Collision Demo"
+	configure apply
+	
+	instance "line" _self _ 
+	instance "cube" _self static_cube follow_mouse=0 _x=(_screen_resolution`0//2) _y=(_screen_resolution`1//2)
+	instance "cube" _self _ follow_mouse=1 other_cube=static_cube
+	
+	Loop
+		wait 1
+		If {getkey "escape"} == 2
+			stopall
+		Endif
+	Endloop
+End

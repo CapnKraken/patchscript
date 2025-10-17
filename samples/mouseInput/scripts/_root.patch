@@ -1,4 +1,7 @@
 Start
+	configure caption "Mouse Input Demo"
+	configure apply
+
 	instance "cursor" _self _ 
 	
 	# Control quitting the project.
