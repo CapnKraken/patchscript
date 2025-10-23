@@ -2,6 +2,7 @@ TODO
     Saving a canvas should allow you to specify coordinates.
     Better error detection/handling. Preferably it would never throw any python exceptions, just patchscript ones.
     Web version, which you can run in a browser. I am not sure how the file structures would work with that.
+    Read-only variables. (I want to use these for stuff set by the engine)
 
 Maybe
     Use opengl for drawing to speed that up, use shaders for per-pixel edits like color shifting.
