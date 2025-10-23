@@ -419,7 +419,6 @@ stamp _self
 
 colorshift r g b a 
 -set the sprite's colorshift value. (a is optional)
--colorshift is not currently recognized as a transformation so you'll need to call 'updatesprite' to see the result.
 
 getkey "space" space_pressed
 -gets the current status of the specified key and stores it in a variable
