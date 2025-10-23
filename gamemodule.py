@@ -294,7 +294,7 @@ class gobj:
             flipv = self.get('_flipv')
             rot = self.get('_rotation')
 
-            if self.update_scale or (self.abnormal_scale and self.update_rotation):
+            if self.update_scale or self.abnormal_scale or (self.abnormal_scale and self.update_rotation):
                 width = self.get('_width')
                 height = self.get('_height')
                 self.setsprite(spr, fliph, flipv, rot, self.new_color_shift, width, height)
@@ -2214,6 +2214,9 @@ class scriptsystem:
                 rot = ph.get_int('_rotation')
                 width = ph.get_int('_width')
                 height = ph.get_int('_height')
+
+                # Update the transform variables
+                self.parent_obj.test_transformations()
 
                 self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift,width, height)
             case 'music':
