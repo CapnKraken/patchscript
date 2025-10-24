@@ -373,7 +373,12 @@ class gobj:
         elif sprite == 0:
             surf = self.render_surface
         else:
-            surf = pygame.transform.flip(gobj.sprites[sprite], fliph, flipv)
+            spr = gobj.sprites.get(sprite)
+
+            if spr == None:
+                return -1
+            else:
+                surf = pygame.transform.flip(spr, fliph, flipv)
 
         if color_shift[0:3] == [0,0,0] and color_shift[3] != 0:
             surf.set_alpha(surf.get_alpha() + color_shift[3])
@@ -2206,7 +2211,12 @@ class scriptsystem:
                         fliph = ph.get_int('_fliph')
                         flipv = ph.get_int('_flipv')
                         rot = ph.get_numeric('_rotation')
-                        self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift)
+                        result = self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift)
+
+                        if result == -1: # sprite not found
+                            error("Runtime", "Invalid sprite", f"No sprite named '{spritename}' has been loaded.", playhead=ph)
+                            return
+            
             case 'updatesprite':
                 spritename = self.parent_obj.get('_sprite')
                 fliph = ph.get_int('_fliph')
