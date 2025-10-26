@@ -2605,8 +2605,8 @@ class scriptsystem:
                     pygame.draw.ellipse(draw_obj.canvas, color, draw_rect, stroke_width)
             case 'line':
                 # ex: draw line 0 0 100 100
-                c1 = [ph.get_int(splitline[3]), ph.get_int(splitline[4])]
-                c2 = [ph.get_int(splitline[5]), ph.get_int(splitline[6])]
+                c1 = [ph.get_int(splitline[3]) + draw_position[0], ph.get_int(splitline[4]) + draw_position[1]]
+                c2 = [ph.get_int(splitline[5]) + draw_position[0], ph.get_int(splitline[6]) + draw_position[1]]
 
                 if self.parent_obj.get('_draw_antialiased') == 1:
                     pygame.draw.aaline(draw_obj.canvas, color, c1, c2, stroke_width)

@@ -42,7 +42,9 @@ Start
 				setattribute _draw_stroke {random 2 10}
 				setvar point1 prev_point
 				setvar point2 {random_pos}
-				draw _self line (point1`0) (point1`1) (point2`0) (point2`1)
+
+				# I subtract the coordinates so the line will draw with absolute coordinates.
+				draw _self line (point1`0 - _x) (point1`1 - _y) (point2`0 - _x) (point2`1 - _y)
 				
 				setvar prev_point point2
 			Endrepeat
