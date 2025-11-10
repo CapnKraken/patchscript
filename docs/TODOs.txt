@@ -3,6 +3,7 @@ TODO
     Better error detection/handling. Preferably it would never throw any python exceptions, just patchscript ones.
     Web version, which you can run in a browser. I am not sure how the file structures would work with that.
     Read-only variables. (I want to use these for stuff set by the engine)
+    Work on _transform_children implementation- currently crashes when used in certain ways and doesn't instantiate properly.
 
 Maybe
     Use opengl for drawing to speed that up, use shaders for per-pixel edits like color shifting.

@@ -605,6 +605,9 @@ _transform_children : if true, changes to _rotation, _fliph, or _flipv will affe
                       Use this sparingly as it can easily slow down the project if used too much.
                       It defaults to the value of its parent's _transform_children variable, or false at the root.
 
+                      NOTE: this is an unfinished feature and should not be depended upon. It sometimes causes crashes if used in certain ways and it doesn't work 100% properly.
+                            It's also supposed to take the value of its parent's attribute upon instantiation but it currently does not do that.
+
 Editing the values of _rotation, _fliph/v, _width, or _height will trigger those graphical changes to be reflected the next frame.
 
 Drawing attributes:
