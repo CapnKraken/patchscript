@@ -4,6 +4,7 @@ TODO
     Web version, which you can run in a browser. I am not sure how the file structures would work with that.
     Read-only variables. (I want to use these for stuff set by the engine)
     Work on _transform_children implementation- currently crashes when used in certain ways and doesn't instantiate properly.
+    Add version information to engine. I'd like it to warn you if you try to run a project made with a newer version on an old version of the engine.
 
 Maybe
     Use opengl for drawing to speed that up, use shaders for per-pixel edits like color shifting.
@@ -13,3 +14,4 @@ Bugs
     Sometimes pausing the game will crash Patchscript (infinite loop somewhere?). Seems random and rare.
         The bug does not occur when not using busy wait in my experience.
     _transform_children does not work entirely properly- updating transform cause some previous transfomations to be cancelled (_width for example).
+    The array subscript operator should be evaluated backwards (forgot the technical term for this).
