@@ -127,6 +127,7 @@ def main():
     win_size = info[3]
     screen_res = info[4]
     busy_wait = info[5]
+    screen_rot = info[6]
 
     clock = pygame.time.Clock()
 
@@ -150,6 +151,9 @@ def main():
             running = False
 
         scaled = pygame.transform.scale(main_screen, win_size)
+
+        if screen_rot != 0:
+            scaled = pygame.transform.rotate(scaled, screen_rot)
         display_screen.blit(scaled, (0,0))
 
         pygame.display.flip()
@@ -176,6 +180,7 @@ def main():
             win_size = info[3]
             screen_res = info[4]
             busy_wait = info[5]
+            screen_rot = info[6]
 
 # adjusts the mouse position based on screen scale
 def adjust_mouse_pos(m_pos, win_size, screen_res):

@@ -2476,7 +2476,7 @@ class scriptsystem:
                             90: 1,
                             180: 2, 
                             270: 3
-                        }[ph.get_int(splitline[2])]
+                        }.get(ph.get_int(splitline[2]))
 
                         if new_rotation:
                             sysvars['screen_rotation'] = new_rotation * 90
@@ -2933,6 +2933,7 @@ sysvars:dict = {
     'hide_mouse':False,
     'caption':'Patch Project',
     'busy_wait':True,
+    'screen_rotation': 0,
 }
 
 def apply_sysvars():
@@ -2942,8 +2943,12 @@ def apply_sysvars():
     else:
         #flags = DOUBLEBUF
         flags = 0
-        
-    display_screen = pygame.display.set_mode(sysvars['window_size'], flags)
+    
+    if (sysvars['screen_rotation'] // 90 % 2 == 0):
+        display_screen = pygame.display.set_mode(sysvars['window_size'], flags)
+    else:
+        window_size = sysvars['window_size']
+        display_screen = pygame.display.set_mode((window_size[1], window_size[0]), flags)
     
     main_screen = pygame.Surface(sysvars['screen_resolution'])
     gobj.resolution = sysvars['screen_resolution']
@@ -2961,7 +2966,7 @@ def apply_sysvars():
 
     target_framerate = sysvars['target_framerate']
 
-    return (display_screen, main_screen, target_framerate, sysvars['window_size'], sysvars['screen_resolution'], sysvars['busy_wait'])
+    return (display_screen, main_screen, target_framerate, sysvars['window_size'], sysvars['screen_resolution'], sysvars['busy_wait'], sysvars['screen_rotation'])
 #endregion
 
 #region EXPRESSION PARSING
