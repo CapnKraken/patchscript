@@ -28,15 +28,17 @@ Take a look inside any of the sample projects to get a sense for how things work
 
 ## Editing
 
--I would recommend using Notepad++ to edit your scripts, as I've made a code highlighter for that editor.  
--In Notepad++:  
-
+-I would recommend using Notepad++ or Vim to edit your scripts, as I've made syntax highlighting for those editors.  
+### Notepad++
 1. select 'Language' from the top bar, then 'User Defined Language' -> 'Define Your Language'  
-2. click 'Import', and find the file 'Patchscript_NPP.xml'  
+2. click 'Import', and find the file 'syntax/patch.xml'  
 3. Reload Notepad++. Now 'Patchscript' should appear under 'Language'.  
 
 -What I do for editing is have Notepad++ and the command line open side-by side, so I can use commands to easily test the project I'm building.  
 
+### Vim
+1. Take patch.vim from the syntax folder and add it to your Vim syntax folder.
+2. In Vim, open a patch file and run :set syntax=patch.
 
 -When you run a project, a file called 'Output.txt' will be created in the project root folder.  
 -This file contains the 'true code' of all scripts loaded during execution. Essentially it's what the scripts become once loaded in.  
@@ -55,6 +57,7 @@ Take a look inside any of the sample projects to get a sense for how things work
 | gamemodule.py | Contains most of Patch's functionality (everything but setup and the main loop). |
 | autopackage.bat | Script to automate the packaging of the python scripts into the executables. You need pyinstaller if you're going to use this. |
 | License.txt | Zlib license. |
-| Patchscript_NPP.xml | Custom code highlighting for Notepad++ |
+| syntax/patch.xml | Custom code highlighting for Notepad++ |
+| syntax/patch.vim | Custom code highlighting for Vim |
 | *.exe | Windows executables, made using pyinstaller. They're the same, except ps_console will give you debug output. |
 | README.md | I hope you know, having read this far... |

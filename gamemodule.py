@@ -1682,6 +1682,13 @@ class scriptsystem:
                                 
                 except:
                     error("Runtime", "Invalid operation.", "Cannot perform increments on non-numeric types.",ph)
+            case 'callstack':
+                # get a copy of the current playhead's call stack, and store it in a specified variable (or _return)
+                if len(splitline) == 2:
+                    resultvar = splitline[1]
+                else:
+                    resultvar = "_return"
+                ph.setvar(resultvar, ph.pc_stack.copy())
             case 'wait':
                 # wait a specified number of frames
                 ph.wait_timer = ph.get_int(splitline[1])

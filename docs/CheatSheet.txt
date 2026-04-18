@@ -546,6 +546,13 @@ load sprite "_icon" "graphics.png"
 configure apply
 -apply engine configuration changes
 
+callstack result_var
+-puts the current playhead's call stack into result_var.
+-If you omit the variable, it'll be placed in _return.
+-The result is the function call stack, in list form.
+	The rightmost element is the current line, 
+	while anything to the left is the line numbers of current function calls.
+
 =-=-=-=-=-=-=-=-=
 OTHER NOTES
 =-=-=-=-=-=-=-=-=
