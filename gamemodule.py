@@ -2072,6 +2072,7 @@ class scriptsystem:
                 # save a file or image
                 file_path = Path(getpathname(ph.get_string(splitline[2]), 3))
                 file_path.parent.mkdir(parents=True,exist_ok=True)
+                print("Path:", file_path)
                 match splitline[1]:
                     # save a text file from a list
                     # save file "a.txt" contents
@@ -2088,8 +2089,22 @@ class scriptsystem:
                         if contents == None:
                             error("Runtime", "Cannot save canvas.", "Object has no canvas.",ph)
                             return
-                        
-                        pygame.image.save(contents, getpathname(ph.get_string(splitline[2]), 1))
+            
+                        # Specify the coordinates of the sprite to save on the canvas.
+                        dim = []
+                        if len(splitline) == 7:
+                            for i in range(4):
+                                dim.append(ph.get_int(splitline[i + 3]))
+                        else:
+                            dim.append(-1)
+                            dim[0] = -1
+
+                        filename = getpathname(ph.get_string(splitline[2]), 3)
+                        if dim[0] == -1:
+                            pygame.image.save(contents, filename)
+                        else:
+                            subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
+                            pygame.image.save(contents.subsurface(subrect), filename)
             case 'load':
                 # load a sprite, sound, font, or text file
                 match splitline[1]:
@@ -2104,6 +2119,7 @@ class scriptsystem:
                                 dim.append(ph.get_int(splitline[i + 4]))
                         else:
                             dim.append(-1)
+                            dim[0] = -1
                         
                         if splitline[3] == '_self':
                             if ph.parent_obj.canvas == None:
@@ -2444,6 +2460,19 @@ class scriptsystem:
                         sysvars['caption'] = ph.get_string(splitline[2])
                     case 'busy_wait':
                         sysvars['busy_wait'] = (splitline[2] == '1')
+                    case 'screen_rotation':
+                        new_rotation = {
+                            0: 0,
+                            1: 1,
+                            2: 2,
+                            3: 3,
+                            90: 1,
+                            180: 2, 
+                            270: 3
+                        }[ph.get_int(splitline[2])]
+
+                        if new_rotation:
+                            sysvars['screen_rotation'] = new_rotation * 90
                     case 'apply':
                         gobj.apply_sysvars_flag = True
                     case _:
