@@ -134,7 +134,6 @@ def main():
     # Create the root object
     root = gobj(root_path, {'name':'_root', 'position':[0,0]}, -1, True)
 
-    frame:int = 0
     running = True
     while running:
 
@@ -142,8 +141,9 @@ def main():
         gobj.globs['_mouse_position'] = adjust_mouse_pos(list(pygame.mouse.get_pos()), win_size, screen_res)
         gobj.globs['_real_fps'] = clock.get_fps()
 
-        if pygame.event.get(QUIT):
-            running = False
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                running = False
 
         do_game_loop(root, main_screen)
 

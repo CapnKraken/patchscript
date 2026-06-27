@@ -398,9 +398,9 @@ draw _self polygon [0, 0, 100, 100, 0, 100]
 -draws a triangle using the points (0,0), (100,100), and (0,100)
 -adding more x,y pairs onto the end will result in an n-agon being drawn
 
-draw _self "sprite" 1
+draw _self "sprite" rotation scale_factor fliph flipv
 -assuming there's a loaded sprite called "sprite", draw that at the object's current position, on the canvas of _self
--if there is a number at the end, it'll scale the sprite size by that much.
+-parameters after "sprite" are optional
 
 draw _self text "Hello, world!"
 -draws text to the object's canvas

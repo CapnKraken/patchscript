@@ -29,6 +29,7 @@ class gobj:
     current_id = 0
 
     music_paused = False
+    music_pause_pos = 0
     music_playing_current = None
     music_seek_offset = 0
 
@@ -2256,26 +2257,29 @@ class scriptsystem:
 
                 match splitline[1]:
                     case 'pause':
-                        if not gobj.music_paused:
-                            pygame.mixer_music.pause()
+                        if not gobj.music_paused and pygame.mixer.music.get_busy():
+                            gobj.music_pause_pos = pygame.mixer.music.get_pos() - gobj.music_seek_offset
                             gobj.music_paused = True
+
+                            pygame.mixer.music.stop()
                     case 'resume':
                         if gobj.music_paused:
-                            pygame.mixer_music.unpause()
+                            pygame.mixer_music.play(start=gobj.music_pause_pos/1000.0)
+                            gobj.music_seek_offset = -gobj.music_pause_pos
                             gobj.music_paused = False
                     case 'position':
-                        current_pos = pygame.mixer_music.get_pos()
+                        current_pos = pygame.mixer.music.get_pos()
                         if len(splitline) > 2:
                             ph.setvar(splitline[2], current_pos - gobj.music_seek_offset)
                         else:
                             ph.setvar('_return', current_pos - gobj.music_seek_offset)
                     case 'seek':
-                        old_position = pygame.mixer_music.get_pos() - gobj.music_seek_offset
+                        old_position = pygame.mixer.music.get_pos() - gobj.music_seek_offset
                         new_position = ph.get_numeric(splitline[2])
                         gobj.music_seek_offset += (old_position - new_position)
-                        print("offset:",gobj.music_seek_offset)
-                        print("newpos", new_position)
-                        pygame.mixer_music.set_pos(new_position / 1000)
+                        #print("offset:",gobj.music_seek_offset)
+                        #print("newpos", new_position)
+                        pygame.mixer.music.set_pos(new_position / 1000)
                     case _:
                         # change the music track currently playing, with a specified fade-out time
                         track = ph.get_string(splitline[1])
@@ -2764,23 +2768,23 @@ class error:
 
 # run the music
 def runmusic():
-    if gobj.music_paused:#gobj.globs['_paused']:
+    if gobj.music_paused:
         return
 
     mus = gobj.globs['_music']
 
     if mus == 'silence':
         return
-    pygame.mixer_music.set_volume(gobj.globs.get('_music_vol')/100)
-    if not pygame.mixer_music.get_busy():
+    pygame.mixer.music.set_volume(gobj.globs.get('_music_vol')/100)
+    if not pygame.mixer.music.get_busy():
         path = getpathname(mus, 2)
-        pygame.mixer_music.load(path)
-        pygame.mixer_music.play()
+        pygame.mixer.music.load(path)
+        pygame.mixer.music.play()
 
 # switch the music to something else with an optional fadeout
 def switchmusic(music, fade=5000):
     gobj.globs['_music'] = music
-    pygame.mixer_music.fadeout(fade)   
+    pygame.mixer.music.fadeout(fade)   
 #endregion
 
 #region INPUT HANDLING
