@@ -2080,7 +2080,7 @@ class scriptsystem:
                 # save a file or image
                 file_path = Path(getpathname(ph.get_string(splitline[2]), 3))
                 file_path.parent.mkdir(parents=True,exist_ok=True)
-                print("Path:", file_path)
+
                 match splitline[1]:
                     # save a text file from a list
                     # save file "a.txt" contents
