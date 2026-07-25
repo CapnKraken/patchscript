@@ -2482,7 +2482,7 @@ class scriptsystem:
                             270: 3
                         }.get(ph.get_int(splitline[2]))
 
-                        if new_rotation:
+                        if new_rotation != None:
                             sysvars['screen_rotation'] = new_rotation * 90
                     case 'apply':
                         gobj.apply_sysvars_flag = True
