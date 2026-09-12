@@ -59,6 +59,7 @@ class Surface:
             self.surf = self.surf.convert_alpha()
 
     def fill(self, color):
+        print(self, self.surf)
         self.surf.fill(color)
 
     def scale(self, size):
@@ -145,20 +146,19 @@ sprite_atlas: dict = {}
 def sprite_load(data, dimensions):
     if type(data) is Surface:
         # load from canvas
-        loaded = data
+        loaded = data.surf
     else:
         # load from file
         filename: str = data
         loaded:pygame.Surface | None = sprite_atlas.get(filename)
         if not loaded:
             sprite_atlas[filename] = pygame.image.load(filename).convert_alpha()
-            loaded = Surface(sprite_atlas[filename])
-    print(loaded, data)
+            loaded = sprite_atlas[filename]
 
     if dimensions[0] == -1:
-        return Surface(loaded.surf)
+        return Surface(loaded)
     else:
-        return Surface(loaded.surf.subsurface(dimensions))
+        return Surface(loaded.subsurface(dimensions))
 
 class CollisionMask:
     mask: pygame.Mask 
@@ -240,7 +240,7 @@ class Music:
         pygame.mixer.music.play(start=start_millis / 1000.0)
 
     def fade_out(millis):
-        pygame.mixer.music.fadeout()
+        pygame.mixer.music.fadeout(millis)
 
     def get_position():
         return pygame.mixer.music.get_pos()

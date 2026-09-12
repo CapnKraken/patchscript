@@ -2656,7 +2656,7 @@ class scriptsystem:
                         draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
                     
                     draw_rect = backend.Rect(draw_position, draw_surf.get_size())
-                    if draw_rect.collide_rect((0,0), gobj.resolution):
+                    if draw_rect.collide_rect([0,0, res[0], res[1]]):
                         draw_obj.is_canvas_dirty = True
                         draw_obj.canvas.render_item(draw_surf, draw_rect)
 #endregion
