@@ -2,8 +2,7 @@ import sys
 import os
 import shutil
 
-import pygame
-from pygame.locals import *
+import pygame_backend as backend
 from gamemodule import *
 
 import cProfile
@@ -14,7 +13,7 @@ try:
     img_path = os.path.join(sys._MEIPASS, "Patch_icon.png")
 except:
     img_path = "icon/Patch_icon.png"
-gobj.sprites['_icon'] = pygame.image.load(img_path)
+gobj.sprites['_icon'] = backend.Surface(img_path, is_display=True)
 
 root_path = 'scripts/_root.patch'
 
@@ -93,28 +92,7 @@ while not has_root:
             sys.exit()
 #endregion
 
-def do_game_loop(root:gobj, main_screen:pygame.Surface):
-    main_screen.fill(color=[0,0,0])
-
-    # update all objects, respond to messages, and render
-    root.obj_tick()
-    root.respond()
-    root.render()
-
-    main_screen.blits(gobj.renderlist)
-    gobj.renderlist.clear()
-    gobj.messages.clear()
-
-    for obj in gobj.dead_objects:
-        gobj.delobj(obj)
-    gobj.dead_objects.clear()
-    
-    runmusic()
-
 def main():
-
-    pygame.init()
-    pygame.mixer.init()
 
     # Create an output file for code.
     outfile = open("Output.txt", mode='w')
@@ -129,47 +107,49 @@ def main():
     busy_wait = info[5]
     screen_rot = info[6]
 
-    clock = pygame.time.Clock()
-
     # Create the root object
     root = gobj(root_path, {'name':'_root', 'position':[0,0]}, -1, True)
 
-    running = True
-    while running:
+    while not (backend.check_should_quit() or gobj._FINISHED):
 
-        updatekeystates(pygame.key.get_pressed())
-        gobj.globs['_mouse_position'] = adjust_mouse_pos(list(pygame.mouse.get_pos()), win_size, screen_res)
-        gobj.globs['_real_fps'] = clock.get_fps()
+        updatekeystates(backend.keys_get_pressed())
+        gobj.globs['_mouse_position'] = adjust_mouse_pos(list(backend.mouse_get_position()), win_size, screen_res)
+        gobj.globs['_real_fps'] = backend.clock.fps_get()
 
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                running = False
+        backend.start_frame(main_screen)
+        
+        # update all objects, respond to messages, and prepare for rendering
+        root.obj_tick()
+        root.respond()
+        root.render()
 
-        do_game_loop(root, main_screen)
+        # render
+        main_screen.render_list(gobj.renderlist)
+        gobj.renderlist.clear()
 
-        if gobj._FINISHED:
-            running = False
+        # TODO sensibly re-organize this once everything else is working
+        gobj.messages.clear()
+    
+        for obj in gobj.dead_objects:
+            gobj.delobj(obj)
+        gobj.dead_objects.clear()
+        
+        runmusic()
 
-        scaled = pygame.transform.scale(main_screen, win_size)
+        scaled = main_screen.scale(win_size)
 
         if screen_rot != 0:
-            scaled = pygame.transform.rotate(scaled, screen_rot)
-        display_screen.blit(scaled, (0,0))
+            scaled = scaled.rotate(screen_rot)
+        backend.display_surface.render_item(scaled, (0,0))
 
-        pygame.display.flip()
-        # For some reason I was getting freezes when using busy loop. No clue why.
-        if busy_wait:
-            clock.tick_busy_loop(target_framerate) 
-        else:
-            clock.tick(target_framerate)
+        backend.end_frame()
 
         if gobj.apply_sysvars_flag:
             # apply the system variables (fullscreen, resolution, etc)
             gobj.apply_sysvars_flag = False
 
             if gobj.apply_fullscreen_change_flag:
-                pygame.display.quit()
-                pygame.display.init()
+                backend.display_refresh()
                 gobj.apply_fullscreen_change_flag = False
 
             info = apply_sysvars()

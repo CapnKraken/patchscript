@@ -1,5 +1,6 @@
-import pygame
-from pygame.locals import *
+import pygame_backend as backend
+#import pygame
+#from pygame.locals import *
 import math
 import random
 import traceback # for error reporting
@@ -21,7 +22,7 @@ class gobj:
     }         # 'globs' is short for 'globals' i.e. global variables
     statics = [] # statics stores raw strings
 
-    colliders:list[pygame.Rect] = []
+    colliders:list[backend.Rect] = []
     object_map:list[int] = []
     dead_objects:list[int] = []
     objects:dict = {}
@@ -44,7 +45,7 @@ class gobj:
     sounds:dict = {}    # sounds stores the sound effects and how long they take
     fonts:dict = {'default':None}     # stores all of the loaded fonts
 
-    collision_mask:pygame.Mask = None
+    collision_mask:backend.CollisionMask = None
     
     renderlist = []     # all the renderable objects are added to this list each frame
 
@@ -98,8 +99,8 @@ class gobj:
         self.scriptsys = scriptsystem(self,script_file)
 
         # gobj only needs a canvas if it's using the 'draw' functionality
-        self.canvas:pygame.Surface = None
-        self.canvas_rect:pygame.Rect = None
+        self.canvas:backend.Surface = None
+        self.canvas_rect:backend.Rect = None
         self.is_canvas_dirty = False
 
         self.new_color_shift = [0,0,0,0]
@@ -111,7 +112,7 @@ class gobj:
         for item in attributes:
             self.set(item, attributes[item])
 
-        self.collision_rect = None
+        self.collision_rect: backend.Rect = None
         self.c_index = None
 
         self.initattributes(gobj.obj_init_atts)
@@ -119,8 +120,8 @@ class gobj:
         if self.is_root:
             self.set('_ignore_pause', 1)
 
-        self.render_rect = None
-        self.render_surface = None
+        self.render_rect: backend.Rect = None
+        self.render_surface: backend.Surface = None
         self.has_sprite = False
 
         # initialize update flags
@@ -379,36 +380,12 @@ class gobj:
             if spr == None:
                 return -1
             else:
-                surf = pygame.transform.flip(spr, fliph, flipv)
+                surf = spr.flip(fliph, flipv)
 
-        if color_shift[0:3] == [0,0,0] and color_shift[3] != 0:
-            surf.set_alpha(surf.get_alpha() + color_shift[3])
-        elif color_shift != [0,0,0,0]:
-
-            pixarr = pygame.PixelArray(surf)
-            for i, row in enumerate(pixarr):
-                for j, item in enumerate(row):
-                    new_color = color_shift.copy()
-                    mapped = surf.unmap_rgb(item)
-                    if mapped.a != 0:
-
-                        new_color[0] += mapped.r
-                        new_color[1] += mapped.g
-                        new_color[2] += mapped.b
-                        new_color[3] += mapped.a
-
-                        for k in range(len(new_color)):
-                            if new_color[k] > 255:
-                                new_color[k] = 255
-                            if new_color[k] < 0:
-                                new_color[k] = 0
-
-                        pixarr[i,j] = tuple(new_color)
-            surf = pixarr.make_surface()
-            pixarr.close()
+        surf.color_shift(color_shift)
 
         if width != -1:
-            surf = pygame.transform.scale(surf, [width, height])
+            surf = surf.scale([width, height])
             self.set('_width', width)
             self.set('_height', height)
         else:
@@ -418,11 +395,11 @@ class gobj:
             self.default_width = sz[0]
             self.default_height = sz[1]
         if rot != 0:
-            surf = pygame.transform.rotate(surf, -rot)
+            surf = surf.rotate(-rot)
         self.render_surface = surf
         render_sz = surf.get_size()
-        self.render_rect = pygame.Rect(0, 0, render_sz[0], render_sz[1])
-        self.render_rect.center = self.global_pos
+        self.render_rect = backend.Rect((0, 0), render_sz)
+        self.render_rect.set_center(self.global_pos)
 
         self.has_sprite = True
 
@@ -435,8 +412,8 @@ class gobj:
 
     # return a list containing the id's of all objects colliding with the caller
     def testcollisions(self, ph):
-        rect:pygame.Rect = self.collision_rect
-        collisions = rect.collidelistall(gobj.colliders)
+        rect:backend.Rect = self.collision_rect
+        collisions = rect.collide_all(gobj.colliders)
         collided_objects = []
         for item in collisions:
             obj_id = gobj.object_map[item]
@@ -448,14 +425,12 @@ class gobj:
     def setposition(self, x, y):
         self.global_pos[0] = x
         self.global_pos[1] = y
-        col_rect:pygame.Rect = self.collision_rect
-        ren_rect:pygame.Rect = self.render_rect
+        col_rect:backend.Rect = self.collision_rect
+        ren_rect:backend.Rect = self.render_rect
         if col_rect:
-            #col_rect.center = (round(self.global_pos[0]), round(self.global_pos[1]))
-            col_rect.center = self.global_pos
+            col_rect.set_center(self.global_pos)
         if ren_rect:
-            #ren_rect.center = (round(self.global_pos[0]), round(self.global_pos[1]))
-            ren_rect.center = self.global_pos
+            ren_rect.set_center(self.global_pos)
         self.update_position = True
     
     
@@ -473,14 +448,12 @@ class gobj:
         self.set('_global_x', self.global_pos[0])
         self.set('_global_y', self.global_pos[1])
         
-        col_rect:pygame.Rect = self.collision_rect
-        ren_rect:pygame.Rect = self.render_rect
+        col_rect:backend.Rect = self.collision_rect
+        ren_rect:backend.Rect = self.render_rect
         if col_rect:
-            #col_rect.center = (round(self.global_pos[0]), round(self.global_pos[1]))
-            col_rect.center = self.global_pos
+            col_rect.set_center(self.global_pos)
         if ren_rect:
-            #ren_rect.center = (round(self.global_pos[0]), round(self.global_pos[1]))
-            ren_rect.center = self.global_pos
+            ren_rect.set_center(self.global_pos)
         self.update_position = True
     
     def calculatemotionvector(self, direction, magnitude):
@@ -525,10 +498,10 @@ class gobj:
         return (math.sqrt(x + y))
     
     def playsound(self, sound):
-        s:tuple[pygame.mixer.Sound, int] = gobj.sounds.get(sound)
-        s[0].set_volume(gobj.globs.get('_sfx_vol')/100)
+        s:backend.Sound = gobj.sounds.get(sound)
+        s.set_volume(gobj.globs.get('_sfx_vol')/100)
         if s:
-            s[0].play(maxtime=s[1])
+            s.play()
     
     # add a message and some messagedata to the global message queue
     def sendmessage(self, message):
@@ -2109,10 +2082,10 @@ class scriptsystem:
 
                         filename = getpathname(ph.get_string(splitline[2]), 3)
                         if dim[0] == -1:
-                            pygame.image.save(contents, filename)
+                            contents.save_to_file(filename)
                         else:
-                            subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
-                            pygame.image.save(contents.subsurface(subrect), filename)
+                            subrect = [dim[0], dim[1], dim[2], dim[3]]
+                            contents.save_to_file(filename, subrect)
             case 'load':
                 # load a sprite, sound, font, or text file
                 match splitline[1]:
@@ -2134,32 +2107,24 @@ class scriptsystem:
                                 error("Runtime", "Cannot load canvas.", "Object has no canvas.",ph)
                                 return
                             # set the source image to be the canvas
-                            atlas = ph.parent_obj.canvas.copy()
+                            source = ph.parent_obj.canvas.copy()
                         else:
                             # set the source image to be from a file
                             sourcefilename = getpathname(ph.get_string(splitline[3]), 1)
-                            atlas = pygame.image.load(sourcefilename).convert_alpha()
-                        
-                        if dim[0] == -1:
-                            gobj.sprites[costumename] = atlas
-                        else:
-                            subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
+                            source = sourcefilename
 
-                            img = atlas.subsurface(subrect)
-                            gobj.sprites[costumename] = img
+                        gobj.sprites[costumename] = backend.sprite_load(source, dim)
                     case 'sound':
                         # ex: load sound "shoot" "shoot.ogg" 100
                         soundname = ph.get_string(splitline[2])
                         sourcefilename = getpathname(ph.get_string(splitline[3]), 2)
-                        soundobj = pygame.mixer.Sound(sourcefilename)
                         if len(splitline) == 5:
                             millis = ph.get_int(splitline[4])
                         else:
                             #millis = soundobj.get_length() * 1000
                             millis = 0
-                        
-                        soundobj.set_volume(gobj.globs['_sfx_vol'])
-                        gobj.sounds[soundname] = (soundobj, millis)
+
+                        gobj.sounds[soundname] = backend.Sound(sourcefilename, millis)
                     case 'file':
                         # ex: load file "scores.txt" scores_var
                         # stores a list of strings in scores_var, with one element being each line of the file
@@ -2183,7 +2148,7 @@ class scriptsystem:
                         sourcefilename = getpathname(ph.get_string(splitline[3]), 4)
                         fontname = ph.get_string(splitline[2])
                         try:
-                            new_font = pygame.font.Font(sourcefilename,0)
+                            err_test = backend.Font(sourcefilename,0)
                             gobj.fonts[fontname] = sourcefilename
                         except:
                             error("Runtime", "Cannot load font.", f"{sourcefilename} is not a valid font file.",ph)
@@ -2208,9 +2173,9 @@ class scriptsystem:
                 if self.parent_obj.render_surface == None:
                     width = ph.get_int('_width')
                     height = ph.get_int('_height')
-                    self.parent_obj.render_surface = pygame.Surface((width,height)).convert_alpha()
-                    self.parent_obj.render_rect = pygame.Rect((0,0), (width,height))
-                    self.parent_obj.render_rect.center = self.parent_obj.global_pos
+                    self.parent_obj.render_surface = backend.Surface((width,height))
+                    self.parent_obj.render_rect = backend.Rect([0,0, width,height])
+                    self.parent_obj.render_rect.set_center(self.parent_obj.global_pos)
 
                 match splitline[1]:
                     case "rect":
@@ -2219,16 +2184,16 @@ class scriptsystem:
                         stroke_width = ph.get_int('_draw_stroke')
                         color = self.parent_obj.get_color()
                         self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
-                        draw_rect = pygame.Rect((0,0), size)
-                        pygame.draw.rect(self.parent_obj.render_surface, color, draw_rect, stroke_width)
+                        draw_rect = backend.Rect((0,0),size)
+                        self.parent_obj.render_surface.draw_rect(color, draw_rect, stroke_width, 0)
                     case "ellipse":
                         self.parent_obj.set('_sprite', 0)
                         size = (ph.get_int('_width'), ph.get_int('_height'))
                         stroke_width = ph.get_int('_draw_stroke')
                         color = self.parent_obj.get_color()
                         self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
-                        draw_rect = pygame.Rect((0,0), size)
-                        pygame.draw.ellipse(self.parent_obj.render_surface, color, draw_rect, stroke_width)
+                        draw_rect = backend.Rect((0,0),size)
+                        self.parent_obj.render_surface.draw_ellipse(color, draw_rect, stroke_width)
                     case _:
                         spritename = ph.get_string(splitline[1])
                         self.parent_obj.set('_sprite', spritename)
@@ -2257,29 +2222,29 @@ class scriptsystem:
 
                 match splitline[1]:
                     case 'pause':
-                        if not gobj.music_paused and pygame.mixer.music.get_busy():
-                            gobj.music_pause_pos = pygame.mixer.music.get_pos() - gobj.music_seek_offset
+                        if not gobj.music_paused and backend.Music.is_playing():
+                            gobj.music_pause_pos = backend.Music.get_position() - gobj.music_seek_offset
                             gobj.music_paused = True
 
-                            pygame.mixer.music.stop()
+                            backend.Music.stop()
                     case 'resume':
                         if gobj.music_paused:
-                            pygame.mixer_music.play(start=gobj.music_pause_pos/1000.0)
+                            backend.Music.play(gobj.music_pause_pos)
                             gobj.music_seek_offset = -gobj.music_pause_pos
                             gobj.music_paused = False
                     case 'position':
-                        current_pos = pygame.mixer.music.get_pos()
+                        current_pos = backend.Music.get_position()
                         if len(splitline) > 2:
                             ph.setvar(splitline[2], current_pos - gobj.music_seek_offset)
                         else:
                             ph.setvar('_return', current_pos - gobj.music_seek_offset)
                     case 'seek':
-                        old_position = pygame.mixer.music.get_pos() - gobj.music_seek_offset
+                        old_position = backend.Music.get_position() - gobj.music_seek_offset
                         new_position = ph.get_numeric(splitline[2])
                         gobj.music_seek_offset += (old_position - new_position)
                         #print("offset:",gobj.music_seek_offset)
                         #print("newpos", new_position)
-                        pygame.mixer.music.set_pos(new_position / 1000)
+                        backend.Music.set_position(new_position)
                     case _:
                         # change the music track currently playing, with a specified fade-out time
                         track = ph.get_string(splitline[1])
@@ -2294,16 +2259,16 @@ class scriptsystem:
             case 'sound':
                 match splitline[1]:
                     case 'pause':
-                        pygame.mixer.pause()
+                        backend.sound_pause()
                     case 'resume':
-                        pygame.mixer.unpause()
+                        backend.sound_resume()
                     case _:
                         # play a sound effect
                         self.parent_obj.playsound(ph.get_string(splitline[1]))
             case 'setcollider':
                 # set the size of the collision box
                 if self.parent_obj.collision_rect == None:
-                    collider = pygame.Rect(0,0,0,0)
+                    collider = backend.Rect([0,0,0,0])
                     self.parent_obj.collision_rect = collider
 
                     # add the collider
@@ -2313,19 +2278,17 @@ class scriptsystem:
                     gobj.collider_count += 1
                     gobj.colliders.append(collider)
                     gobj.object_map.append(self.parent_obj.immut_id)
-
                 else:
                     collider = self.parent_obj.collision_rect
-                w = ph.get_int(splitline[1])
-                h = ph.get_int(splitline[2])
-                collider.w = w
-                collider.h = h
-                collider.center = self.parent_obj.global_pos
+
+                collider.set_width(ph.get_int(splitline[1]))
+                collider.set_height(ph.get_int(splitline[2]))
+                collider.set_center(self.parent_obj.global_pos)
             case 'collide':
                 self.cmd_collide(ph, splitline)
             case 'setmask':
                 if ph.parent_obj.render_surface:
-                    ph.parent_obj.collision_mask = pygame.mask.from_surface(ph.parent_obj.render_surface)
+                    ph.parent_obj.collision_mask = backend.CollisionMask(ph.parent_obj.render_surface)
             case 'maskcollide':
                 self.cmd_maskcollide(ph, splitline)    
             case 'stopscripts':
@@ -2352,15 +2315,16 @@ class scriptsystem:
                 # ex: stamp _self -> stamps _self gobj onto canvas. Just like Scratch's 'stamp' function
                 if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
                     # create a canvas that spans the screen
-                    draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
+                    draw_obj.canvas = backend.Surface(gobj.resolution)
                     draw_obj.canvas.fill(color=(0,0,0,0))
-                    draw_obj.canvas_rect = pygame.Rect((0,0), gobj.resolution)
+                    draw_obj.canvas_rect = backend.Rect((0,0), gobj.resolution)
                 
                 # only stamp it if the object actually has something to stamp
                 if obj.render_surface and obj.render_rect:
-                    if obj.render_rect.colliderect((0,0), gobj.globs["_screen_resolution"]):
+                    res = gobj.globs["_screen_resolution"]
+                    if obj.render_rect.collide_rect([0,0, res[0], res[1]]):
                         draw_obj.is_canvas_dirty = True
-                        draw_obj.canvas.blit(obj.render_surface, obj.render_rect)
+                        draw_obj.canvas.render_item(obj.render_surface, obj.render_rect)
             case 'colorshift':
                 shift_r = ph.get_int(splitline[1])
                 shift_g = ph.get_int(splitline[2])
@@ -2514,7 +2478,7 @@ class scriptsystem:
 
         result = 0
         if obj1.collision_mask and obj2.collision_mask:
-            if obj1.render_rect.colliderect(obj2.render_rect):
+            if obj1.render_rect.collide_rect(obj2.render_rect):
                 offset = (obj2.render_rect.left - obj1.render_rect.left, obj2.render_rect.top - obj1.render_rect.top)
                 result = obj1.collision_mask.overlap(obj2.collision_mask, offset)
                 if result:
@@ -2544,12 +2508,10 @@ class scriptsystem:
                 for i in range(4):
                     line_coords.append(ph.get_int(splitline[i+3]))
 
-                collider:pygame.Rect = obj.collision_rect
-                clipped = collider.clipline(line_coords)
-                if clipped == ():
-                    ph.setvar("_return", 0)
-                else:
+                if collider.collide_line(line_coords):
                     ph.setvar("_return", 1)
+                else:
+                    ph.setvar("_return", 0)
             case 'point':
                 # collide with a point
 
@@ -2557,11 +2519,10 @@ class scriptsystem:
                 for i in range(2):
                     point_coords.append(ph.get_int(splitline[i+3]))
 
-                collision = obj.collision_rect.collidepoint(point_coords)
-                if collision == False:
-                    ph.setvar("_return", 0)
-                else:
+                if obj.collision_rect.collide_point(point_coords):
                     ph.setvar("_return", 1)
+                else:
+                    ph.setvar("_return", 0)
             case _:
                 # collide with one other object
                 other_obj = ph.get_gobj(splitline[2])
@@ -2570,30 +2531,30 @@ class scriptsystem:
                     return
                 
                 collider = obj.collision_rect
+                other_collider = other_obj.collision_rect
 
-                other_collider:pygame.Rect = other_obj.collision_rect
-                collision = collider.colliderect(other_collider)
-
-                if collision == False:
-                    ph.setvar("_return", 0)
-                else:
+                if collider.collide_rect(other_collider):
                     ph.setvar("_return", 1)
+                else:
+                    ph.setvar("_return", 0)
 
     def cmd_draw(self, ph:playhead, splitline:list[str]):
+        res = gobj.resolution
         draw_obj:gobj = ph.get_gobj(splitline[1])
         if draw_obj == 0:
             return
         if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
             # create a canvas that spans the screen
-            draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
+            draw_obj.canvas = backend.Surface(res)
             draw_obj.canvas.fill(color=(0,0,0,0))
-            draw_obj.canvas_rect = pygame.Rect((0,0), gobj.resolution)
+            draw_obj.canvas_rect = backend.Rect((0,0), res)
         
         # get the position to draw at
         draw_position = self.parent_obj.global_pos
         stroke_width = ph.get_int('_draw_stroke')
         color = self.parent_obj.get_color()
         centered = ph.get_int('_draw_centered')
+        antialiased = self.parent_obj.get('_draw_antialiased') == 1
         match splitline[2]:
             case 'rect':
                 # ex: draw rect 10 10
@@ -2611,10 +2572,10 @@ class scriptsystem:
                     for i in range(1, len(rect_corner_args)):
                         rect_corner_args[i] = rect_corner_args[1]
 
-                draw_rect = pygame.Rect(draw_position, draw_size)
-                if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_rect = backend.Rect(draw_position, draw_size)
+                if draw_rect.collide_rect([0,0, res[0], res[1]]):
                     draw_obj.is_canvas_dirty = True
-                    pygame.draw.rect(draw_obj.canvas, color, draw_rect, stroke_width, rect_corner_args[0], rect_corner_args[1], rect_corner_args[2], rect_corner_args[3], rect_corner_args[4])
+                    draw_obj.canvas.draw_rect(color, draw_rect, stroke_width, antialiased, rect_corner_args[0], rect_corner_args[1], rect_corner_args[2], rect_corner_args[3], rect_corner_args[4])
             case 'polygon':
                 # ex: draw _self polygon points
                 # points is a list of int values. draw_stroke attribute will be used for width
@@ -2631,53 +2592,47 @@ class scriptsystem:
                 poly_points = []
                 for i in range(0, len(draw_points_list), 2):
                     poly_points.append([draw_points_list[i]+draw_position[0], draw_points_list[i+1]+draw_position[1]])
-                draw_rect = pygame.draw.polygon(draw_obj.canvas, color, poly_points, stroke_width)
-                if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_rect = draw_obj.canvas.draw_polygon(color, poly_points, stroke_width, antialiased)
+                if draw_rect.collide_rect([0,0, res[0], res[1]]):
                     draw_obj.is_canvas_dirty = True
             case 'ellipse':
                 draw_size = [ph.get_int(splitline[3]), ph.get_int(splitline[4])]
                 if centered == 1:
                     draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]                    
 
-                draw_rect = pygame.Rect(draw_position, draw_size)
-                if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_rect = backend.Rect(draw_position, draw_size)
+                if draw_rect.collide_rect([0,0, res[0], res[1]]):
                     draw_obj.is_canvas_dirty = True
-                    pygame.draw.ellipse(draw_obj.canvas, color, draw_rect, stroke_width)
+                    draw_obj.canvas.draw_ellipse(color, draw_rect, stroke_width, antialiased)
             case 'line':
                 # ex: draw line 0 0 100 100
                 c1 = [ph.get_int(splitline[3]) + draw_position[0], ph.get_int(splitline[4]) + draw_position[1]]
                 c2 = [ph.get_int(splitline[5]) + draw_position[0], ph.get_int(splitline[6]) + draw_position[1]]
 
-                if self.parent_obj.get('_draw_antialiased') == 1:
-                    pygame.draw.aaline(draw_obj.canvas, color, c1, c2, stroke_width)
-                else:
-                    pygame.draw.line(draw_obj.canvas, color, c1, c2, stroke_width)
+                draw_obj.canvas.draw_line(color, c1, c2, stroke_width)
                 draw_obj.is_canvas_dirty = True
             case 'text':
                 # ex: draw text "Hello!"
                 # stroke_width is font size now.
 
                 current_font = gobj.fonts.get(ph.get_string('_draw_font'))
-
-                text_obj = pygame.font.Font(current_font, stroke_width)
                 text = ph.get_string(splitline[3])
-                text_surf = text_obj.render(text, self.parent_obj.get('_draw_antialiased')==1, color)
-                if len(color) == 4:
-                    text_surf.set_alpha(color[3])
+
+                text_surf = backend.get_text_surface(color, text, current_font, stroke_width, antialiased)
                 draw_size = text_surf.get_size()
 
                 if centered == 1:
                     draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
-                draw_rect = pygame.Rect(draw_position, draw_size)
-                if draw_rect.colliderect((0,0), gobj.resolution):
-                    draw_obj.canvas.blit(text_surf, draw_rect)
+                draw_rect = backend.Rect(draw_position, draw_size)
+                if draw_rect.collide_rect([0,0, res[0], res[1]]):
+                    draw_obj.canvas.render_item(text_surf, draw_rect)
                     draw_obj.is_canvas_dirty = True
             case 'clear':
                 if draw_obj.is_canvas_dirty:
                     draw_obj.canvas.fill(color=(0,0,0,0))
                     draw_obj.is_canvas_dirty = False
             case _: # default case, try to draw a sprite
-                sprite = gobj.sprites.get(ph.get_string(splitline[2]))
+                sprite: backend.Surface = gobj.sprites.get(ph.get_string(splitline[2]))
                 if sprite != None:
                     
                     draw_size = sprite.get_size()
@@ -2694,16 +2649,16 @@ class scriptsystem:
                         scale_factor = ph.get_numeric(splitline[4])
                         draw_size = (round(draw_size[0] * scale_factor), round(draw_size[1] * scale_factor))
 
-                    draw_surf = pygame.transform.rotate(pygame.transform.flip(pygame.transform.scale(sprite, draw_size), fliph, flipv),-rotation)
+                    draw_surf = sprite.scale(draw_size).flip(fliph, flipv).rotate(-rotation)
                     draw_size = draw_surf.get_size()
 
                     if centered == 1:
                         draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
                     
-                    draw_rect = pygame.Rect(draw_position, draw_surf.get_size())
-                    if draw_rect.colliderect((0,0), gobj.resolution):
+                    draw_rect = backend.Rect(draw_position, draw_surf.get_size())
+                    if draw_rect.collide_rect((0,0), gobj.resolution):
                         draw_obj.is_canvas_dirty = True
-                        draw_obj.canvas.blit(draw_surf, draw_rect)
+                        draw_obj.canvas.render_item(draw_surf, draw_rect)
 #endregion
 
 #endregion
@@ -2775,16 +2730,15 @@ def runmusic():
 
     if mus == 'silence':
         return
-    pygame.mixer.music.set_volume(gobj.globs.get('_music_vol')/100)
-    if not pygame.mixer.music.get_busy():
+    backend.Music.set_volume(gobj.globs.get('_music_vol')/100)
+    if not backend.Music.is_playing():
         path = getpathname(mus, 2)
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.play()
+        backend.Music.play_new(path)
 
 # switch the music to something else with an optional fadeout
 def switchmusic(music, fade=5000):
     gobj.globs['_music'] = music
-    pygame.mixer.music.fadeout(fade)   
+    backend.Music.fade_out(fade)   
 #endregion
 
 #region INPUT HANDLING
@@ -2907,7 +2861,7 @@ def updatekeystates(keylist:list):
 
         if key > 64 and key < 68:
             # update mouse stuff
-            mouse_buttons = pygame.mouse.get_pressed()
+            mouse_buttons = backend.mouse_get_pressed()
             key_pressed = mouse_buttons[key-65]
         else:
             key_pressed = keylist[key]
@@ -2949,26 +2903,27 @@ def apply_sysvars():
         flags = 0
     
     if (sysvars['screen_rotation'] // 90 % 2 == 0):
-        display_screen = pygame.display.set_mode(sysvars['window_size'], flags)
+        display_screen = backend.display_init(sysvars['window_size'], flags)
     else:
         window_size = sysvars['window_size']
-        display_screen = pygame.display.set_mode((window_size[1], window_size[0]), flags)
+        display_screen = backend.display_init((window_size[1], window_size[0]), flags)
     
-    main_screen = pygame.Surface(sysvars['screen_resolution'])
+    main_screen = backend.Surface(sysvars['screen_resolution'], is_display=True)
     gobj.resolution = sysvars['screen_resolution']
     
     gobj.globs['_screen_resolution'] = gobj.resolution
     gobj.globs['_window_size'] = sysvars['window_size']
 
-    pygame.mouse.set_visible(not sysvars['hide_mouse'])
+    backend.mouse_set_visible(not sysvars['hide_mouse'])
 
-    pygame.display.set_caption(sysvars['caption'])
+    backend.display_set_caption(sysvars['caption'])
 
     current_icon = gobj.sprites.get("_icon")
-    if type(current_icon) is pygame.Surface:
-        pygame.display.set_icon(current_icon)
+    if type(current_icon) is backend.Surface:
+        backend.display_set_icon(current_icon)
 
     target_framerate = sysvars['target_framerate']
+    backend.clock.target_fps = target_framerate
 
     return (display_screen, main_screen, target_framerate, sysvars['window_size'], sysvars['screen_resolution'], sysvars['busy_wait'], sysvars['screen_rotation'])
 #endregion
