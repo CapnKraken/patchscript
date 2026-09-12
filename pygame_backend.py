@@ -38,6 +38,12 @@ class Rect:
     def set_height(self, height):
         self.rect.h = height
 
+    def get_x(self):
+        return self.rect.x
+    
+    def get_y(self):
+        return self.rect.y
+
 class Font:
     font: pygame.font.Font
 
@@ -50,16 +56,15 @@ class Surface:
     def __init__(self, arg=None, is_display=False):
         if type(arg) is str:
             self.surf = pygame.image.load(arg)
-        elif type(arg) is list:
+        elif type(arg) is list or type(arg) is tuple:
             self.surf = pygame.Surface(arg)
         elif type(arg) is pygame.Surface:
             self.surf = arg
 
-        if self.surf and not is_display:
+        if not is_display:
             self.surf = self.surf.convert_alpha()
 
     def fill(self, color):
-        print(self, self.surf)
         self.surf.fill(color)
 
     def scale(self, size):

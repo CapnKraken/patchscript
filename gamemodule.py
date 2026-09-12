@@ -2173,12 +2173,13 @@ class scriptsystem:
                 if self.parent_obj.render_surface == None:
                     width = ph.get_int('_width')
                     height = ph.get_int('_height')
-                    self.parent_obj.render_surface = backend.Surface((width,height))
+                    self.parent_obj.render_surface = backend.Surface([width,height])
                     self.parent_obj.render_rect = backend.Rect([0,0, width,height])
                     self.parent_obj.render_rect.set_center(self.parent_obj.global_pos)
 
                 match splitline[1]:
                     case "rect":
+                        #print(self.parent_obj.render_surface, self.parent_obj.render_surface.surf)
                         self.parent_obj.set('_sprite', 0)
                         size = (ph.get_int('_width'), ph.get_int('_height'))
                         stroke_width = ph.get_int('_draw_stroke')
@@ -2479,7 +2480,7 @@ class scriptsystem:
         result = 0
         if obj1.collision_mask and obj2.collision_mask:
             if obj1.render_rect.collide_rect(obj2.render_rect):
-                offset = (obj2.render_rect.left - obj1.render_rect.left, obj2.render_rect.top - obj1.render_rect.top)
+                offset = (obj2.render_rect.get_x() - obj1.render_rect.get_x(), obj2.render_rect.get_y() - obj1.render_rect.get_y())
                 result = obj1.collision_mask.overlap(obj2.collision_mask, offset)
                 if result:
                     result = list(result)
@@ -2508,7 +2509,7 @@ class scriptsystem:
                 for i in range(4):
                     line_coords.append(ph.get_int(splitline[i+3]))
 
-                if collider.collide_line(line_coords):
+                if obj.collision_rect.collide_line(line_coords):
                     ph.setvar("_return", 1)
                 else:
                     ph.setvar("_return", 0)
