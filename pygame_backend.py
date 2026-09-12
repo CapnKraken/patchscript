@@ -60,6 +60,7 @@ class Surface:
             self.surf = pygame.Surface(arg)
         elif type(arg) is pygame.Surface:
             self.surf = arg
+            is_display = True
 
         if not is_display:
             self.surf = self.surf.convert_alpha()
