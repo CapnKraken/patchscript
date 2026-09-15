@@ -1,4 +1,5 @@
 import pygame_backend as backend
+from pygame import Rect as Collider
 #import pygame
 #from pygame.locals import *
 import math
@@ -22,7 +23,7 @@ class gobj:
     }         # 'globs' is short for 'globals' i.e. global variables
     statics = [] # statics stores raw strings
 
-    colliders:list[backend.Rect] = []
+    colliders:list[Collider] = []
     object_map:list[int] = []
     dead_objects:list[int] = []
     objects:dict = {}
@@ -112,7 +113,7 @@ class gobj:
         for item in attributes:
             self.set(item, attributes[item])
 
-        self.collision_rect: backend.Rect = None
+        self.collision_rect: Collider = None
         self.c_index = None
 
         self.initattributes(gobj.obj_init_atts)
@@ -412,8 +413,8 @@ class gobj:
 
     # return a list containing the id's of all objects colliding with the caller
     def testcollisions(self, ph):
-        rect:backend.Rect = self.collision_rect
-        collisions = rect.collide_all(gobj.colliders)
+        rect:Collider = self.collision_rect
+        collisions = rect.collidelistall(gobj.colliders)
         collided_objects = []
         for item in collisions:
             obj_id = gobj.object_map[item]
@@ -425,10 +426,10 @@ class gobj:
     def setposition(self, x, y):
         self.global_pos[0] = x
         self.global_pos[1] = y
-        col_rect:backend.Rect = self.collision_rect
+        col_rect:Collider = self.collision_rect
         ren_rect:backend.Rect = self.render_rect
         if col_rect:
-            col_rect.set_center(self.global_pos)
+            col_rect.center = self.global_pos
         if ren_rect:
             ren_rect.set_center(self.global_pos)
         self.update_position = True
@@ -448,10 +449,10 @@ class gobj:
         self.set('_global_x', self.global_pos[0])
         self.set('_global_y', self.global_pos[1])
         
-        col_rect:backend.Rect = self.collision_rect
+        col_rect:Collider = self.collision_rect
         ren_rect:backend.Rect = self.render_rect
         if col_rect:
-            col_rect.set_center(self.global_pos)
+            col_rect.center = self.global_pos
         if ren_rect:
             ren_rect.set_center(self.global_pos)
         self.update_position = True
@@ -2264,7 +2265,7 @@ class scriptsystem:
             case 'setcollider':
                 # set the size of the collision box
                 if self.parent_obj.collision_rect == None:
-                    collider = backend.Rect([0,0,0,0])
+                    collider = Collider([0,0,0,0])
                     self.parent_obj.collision_rect = collider
 
                     # add the collider
@@ -2277,9 +2278,9 @@ class scriptsystem:
                 else:
                     collider = self.parent_obj.collision_rect
 
-                collider.set_width(ph.get_int(splitline[1]))
-                collider.set_height(ph.get_int(splitline[2]))
-                collider.set_center(self.parent_obj.global_pos)
+                collider.w = ph.get_int(splitline[1])
+                collider.h = ph.get_int(splitline[2])
+                collider.center = self.parent_obj.global_pos
             case 'collide':
                 self.cmd_collide(ph, splitline)
             case 'setmask':
@@ -2504,7 +2505,7 @@ class scriptsystem:
                 for i in range(4):
                     line_coords.append(ph.get_int(splitline[i+3]))
 
-                if obj.collision_rect.collide_line(line_coords):
+                if obj.collision_rect.clipline(line_coords) != ():
                     ph.setvar("_return", 1)
                 else:
                     ph.setvar("_return", 0)
@@ -2515,7 +2516,7 @@ class scriptsystem:
                 for i in range(2):
                     point_coords.append(ph.get_int(splitline[i+3]))
 
-                if obj.collision_rect.collide_point(point_coords):
+                if obj.collision_rect.collidepoint(point_coords):
                     ph.setvar("_return", 1)
                 else:
                     ph.setvar("_return", 0)
@@ -2529,7 +2530,11 @@ class scriptsystem:
                 collider = obj.collision_rect
                 other_collider = other_obj.collision_rect
 
-                if collider.collide_rect(other_collider):
+                if other_collider == None:
+                    error("Runtime", "Invalid collision.", f"Can't test collision. Object with ID {other_obj} has no collider",ph)
+                    return
+
+                if collider.colliderect(other_collider):
                     ph.setvar("_return", 1)
                 else:
                     ph.setvar("_return", 0)

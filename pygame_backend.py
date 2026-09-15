@@ -15,28 +15,8 @@ class Rect:
     def set_center(self, coordinates):
         self.rect.center = coordinates
 
-    def collide_all(self, rect_list):
-        collision_items = [item.rect for item in rect_list]
-        return self.rect.collidelistall(collision_items)
-
     def collide_rect(self, rect):
         return self.rect.colliderect(rect)
-
-    def collide_line(self, line_coords):
-        clipped = self.rect.clipline(line_coords)
-        if clipped:
-            return True
-        else:
-            return False
-
-    def collide_point(self, point):
-        return self.rect.collidepoint(point)
-
-    def set_width(self, width):
-        self.rect.w = width
-
-    def set_height(self, height):
-        self.rect.h = height
 
     def get_x(self):
         return self.rect.x
@@ -221,7 +201,7 @@ def mouse_get_position():
     global screen_resolution, window_size
 
     adjusted_pos = list(pygame.mouse.get_pos())
-    
+
     scale_x = screen_resolution[0] / window_size[0]
     scale_y = screen_resolution[1] / window_size[1]
 
