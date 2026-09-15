@@ -99,7 +99,7 @@ class gobj:
         self.scriptsys = scriptsystem(self,script_file)
 
         # gobj only needs a canvas if it's using the 'draw' functionality
-        self.canvas:backend.Surface = None
+        self.canvas:backend.Canvas = None
         self.canvas_rect:backend.Rect = None
         self.is_canvas_dirty = False
 
@@ -2179,22 +2179,17 @@ class scriptsystem:
 
                 match splitline[1]:
                     case "rect":
-                        #print(self.parent_obj.render_surface, self.parent_obj.render_surface.surf)
                         self.parent_obj.set('_sprite', 0)
                         size = (ph.get_int('_width'), ph.get_int('_height'))
                         stroke_width = ph.get_int('_draw_stroke')
                         color = self.parent_obj.get_color()
-                        self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
-                        draw_rect = backend.Rect((0,0),size)
-                        self.parent_obj.render_surface.draw_rect(color, draw_rect, stroke_width, 0)
+                        self.parent_obj.render_surface = backend.get_rect_surface(color, size, stroke_width)
                     case "ellipse":
                         self.parent_obj.set('_sprite', 0)
                         size = (ph.get_int('_width'), ph.get_int('_height'))
                         stroke_width = ph.get_int('_draw_stroke')
                         color = self.parent_obj.get_color()
-                        self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
-                        draw_rect = backend.Rect((0,0),size)
-                        self.parent_obj.render_surface.draw_ellipse(color, draw_rect, stroke_width)
+                        self.parent_obj.render_surface = backend.get_ellipse_surface(color, size, stroke_width)
                     case _:
                         spritename = ph.get_string(splitline[1])
                         self.parent_obj.set('_sprite', spritename)
@@ -2206,7 +2201,7 @@ class scriptsystem:
                         if result == -1: # sprite not found
                             error("Runtime", "Invalid sprite", f"No sprite named '{spritename}' has been loaded.", playhead=ph)
                             return
-            
+
             case 'updatesprite':
                 spritename = self.parent_obj.get('_sprite')
                 fliph = ph.get_int('_fliph')
@@ -2316,7 +2311,7 @@ class scriptsystem:
                 # ex: stamp _self -> stamps _self gobj onto canvas. Just like Scratch's 'stamp' function
                 if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
                     # create a canvas that spans the screen
-                    draw_obj.canvas = backend.Surface(gobj.resolution)
+                    draw_obj.canvas = backend.Canvas(gobj.resolution)
                     draw_obj.canvas.fill(color=(0,0,0,0))
                     draw_obj.canvas_rect = backend.Rect((0,0), gobj.resolution)
                 
@@ -2546,7 +2541,7 @@ class scriptsystem:
             return
         if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
             # create a canvas that spans the screen
-            draw_obj.canvas = backend.Surface(res)
+            draw_obj.canvas = backend.Canvas(res)
             draw_obj.canvas.fill(color=(0,0,0,0))
             draw_obj.canvas_rect = backend.Rect((0,0), res)
         
@@ -2891,7 +2886,6 @@ sysvars:dict = {
     'target_framerate':60,
     'hide_mouse':False,
     'caption':'Patch Project',
-    'busy_wait':True,
     'screen_rotation': 0,
 }
 
@@ -2902,14 +2896,10 @@ def apply_sysvars():
     else:
         #flags = DOUBLEBUF
         flags = 0
-    
-    if (sysvars['screen_rotation'] // 90 % 2 == 0):
-        display_screen = backend.display_init(sysvars['window_size'], flags)
-    else:
-        window_size = sysvars['window_size']
-        display_screen = backend.display_init((window_size[1], window_size[0]), flags)
-    
-    main_screen = backend.Surface(sysvars['screen_resolution'], is_display=True)
+
+    backend.display_init(sysvars['window_size'], sysvars['screen_rotation'], flags)
+
+    backend.render_init(sysvars['screen_resolution'])
     gobj.resolution = sysvars['screen_resolution']
     
     gobj.globs['_screen_resolution'] = gobj.resolution
@@ -2923,10 +2913,7 @@ def apply_sysvars():
     if type(current_icon) is backend.Surface:
         backend.display_set_icon(current_icon)
 
-    target_framerate = sysvars['target_framerate']
-    backend.clock.target_fps = target_framerate
-
-    return (display_screen, main_screen, target_framerate, sysvars['window_size'], sysvars['screen_resolution'], sysvars['busy_wait'], sysvars['screen_rotation'])
+    backend.clock.target_fps = sysvars['target_framerate']
 #endregion
 
 #region EXPRESSION PARSING

@@ -13,7 +13,7 @@ try:
     img_path = os.path.join(sys._MEIPASS, "Patch_icon.png")
 except:
     img_path = "icon/Patch_icon.png"
-gobj.sprites['_icon'] = backend.Surface(img_path, is_display=True)
+gobj.sprites['_icon'] = backend.Surface(img_path)
 
 root_path = 'scripts/_root.patch'
 
@@ -98,14 +98,7 @@ def main():
     outfile = open("Output.txt", mode='w')
     outfile.close()
 
-    info = apply_sysvars()
-    display_screen = info[0]
-    main_screen = info[1]
-    target_framerate = info[2]
-    win_size = info[3]
-    screen_res = info[4]
-    busy_wait = info[5]
-    screen_rot = info[6]
+    apply_sysvars()
 
     # Create the root object
     root = gobj(root_path, {'name':'_root', 'position':[0,0]}, -1, True)
@@ -113,35 +106,26 @@ def main():
     while not (backend.check_should_quit() or gobj._FINISHED):
 
         updatekeystates(backend.keys_get_pressed())
-        gobj.globs['_mouse_position'] = adjust_mouse_pos(list(backend.mouse_get_position()), win_size, screen_res)
+        gobj.globs['_mouse_position'] = backend.mouse_get_position()
         gobj.globs['_real_fps'] = backend.clock.fps_get()
 
-        backend.start_frame(main_screen)
+        backend.start_frame()
         
         # update all objects, respond to messages, and prepare for rendering
         root.obj_tick()
-        root.respond()
-        root.render()
-
-        # render
-        main_screen.render_list(gobj.renderlist)
-        gobj.renderlist.clear()
-
-        # TODO sensibly re-organize this once everything else is working
-        gobj.messages.clear()
-    
         for obj in gobj.dead_objects:
             gobj.delobj(obj)
         gobj.dead_objects.clear()
+
+        root.respond()
+        gobj.messages.clear()
+
+        # render
+        root.render()
+        backend.render_objects(gobj.renderlist)
+        gobj.renderlist.clear()
         
         runmusic()
-
-        scaled = main_screen.scale(win_size)
-
-        if screen_rot != 0:
-            scaled = scaled.rotate(screen_rot)
-        backend.display_surface.render_item(scaled, (0,0))
-
         backend.end_frame()
 
         if gobj.apply_sysvars_flag:
@@ -152,24 +136,8 @@ def main():
                 backend.display_refresh()
                 gobj.apply_fullscreen_change_flag = False
 
-            info = apply_sysvars()
+            apply_sysvars()
 
-            display_screen = info[0]
-            main_screen = info[1]
-            target_framerate = info[2]
-            win_size = info[3]
-            screen_res = info[4]
-            busy_wait = info[5]
-            screen_rot = info[6]
-
-# adjusts the mouse position based on screen scale
-def adjust_mouse_pos(m_pos, win_size, screen_res):
-    adjusted_pos = m_pos
-    scale_x = screen_res[0] / win_size[0]
-    scale_y = screen_res[1] / win_size[1]
-    adjusted_pos[0] *= scale_x
-    adjusted_pos[1] *= scale_y
-    return adjusted_pos
 
 import pstats
 

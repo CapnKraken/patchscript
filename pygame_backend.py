@@ -53,20 +53,18 @@ class Font:
 class Surface:
     surf: pygame.Surface = None
 
-    def __init__(self, arg=None, is_display=False):
+    def __init__(self, arg=None):
         if type(arg) is str:
             self.surf = pygame.image.load(arg)
         elif type(arg) is list or type(arg) is tuple:
             self.surf = pygame.Surface(arg)
         elif type(arg) is pygame.Surface:
             self.surf = arg
-            is_display = True
 
-        if not is_display:
+        try:
             self.surf = self.surf.convert_alpha()
-
-    def fill(self, color):
-        self.surf.fill(color)
+        except:
+            pass
 
     def scale(self, size):
         return Surface(pygame.transform.scale(self.surf, size))
@@ -105,9 +103,17 @@ class Surface:
             self.surf = pixarr.make_surface()
             pixarr.close()
 
-    def render_list(self, item_tuples):
-        render_items = [(item[0].surf, item[1].rect) for item in item_tuples]
-        self.surf.blits(render_items)
+    def get_size(self):
+        return self.surf.get_size()
+
+class Canvas:
+    surf: pygame.Surface = None
+
+    def __init__(self, dimensions=None):
+        self.surf = pygame.Surface(dimensions).convert_alpha()
+
+    def fill(self, color):
+        self.surf.fill(color)
 
     def render_item(self, surf, coordinates):
         render_item = surf.surf
@@ -140,17 +146,10 @@ class Surface:
         else:
             pygame.draw.line(self.surf, color, point1, point2, stroke)
 
-def get_text_surface(color, text, font, size, antialiased=False):
-    text_obj = pygame.font.Font(font, size)
-    text_surf = text_obj.render(text, antialiased, color)
-    if len(color) == 4:
-        text_surf.set_alpha(color[3])
-    return Surface(text_surf)
-
 sprite_atlas: dict = {}
 
 def sprite_load(data, dimensions):
-    if type(data) is Surface:
+    if type(data) is Surface or type(data) is Canvas:
         # load from canvas
         loaded = data.surf
     else:
@@ -165,6 +164,26 @@ def sprite_load(data, dimensions):
         return Surface(loaded)
     else:
         return Surface(loaded.subsurface(dimensions))
+
+# Get a surface containing only a rectangle with the defined params.
+def get_rect_surface(color, size, stroke, antialiased=False):
+    surf = pygame.surface.Surface(size)
+    rect = [0, 0, size[0], size[1]]
+    pygame.draw.rect(surf, color, rect, stroke)
+    return Surface(surf)
+
+def get_ellipse_surface(color, size, stroke, antialiased=False):
+    surf = pygame.surface.Surface(size)
+    rect = [0, 0, size[0], size[1]]
+    pygame.draw.ellipse(surf, color, rect, stroke)
+    return Surface(surf)
+
+def get_text_surface(color, text, font, size, antialiased=False):
+    text_obj = pygame.font.Font(font, size)
+    text_surf = text_obj.render(text, antialiased, color)
+    if len(color) == 4:
+        text_surf.set_alpha(color[3])
+    return Surface(text_surf)
 
 class CollisionMask:
     mask: pygame.Mask 
@@ -188,11 +207,28 @@ class Clock:
     def tick(self):
         self.clock.tick_busy_loop(self.target_fps)
 
+display_surface = None
+render_surface = None
+window_size = (0, 0)
+screen_resolution = (0, 0)
+screen_rotation = 0
+clock = Clock()
+
 def keys_get_pressed():
     return pygame.key.get_pressed()
 
 def mouse_get_position():
-    return pygame.mouse.get_pos()
+    global screen_resolution, window_size
+
+    adjusted_pos = list(pygame.mouse.get_pos())
+    
+    scale_x = screen_resolution[0] / window_size[0]
+    scale_y = screen_resolution[1] / window_size[1]
+
+    adjusted_pos[0] *= scale_x
+    adjusted_pos[1] *= scale_y
+
+    return adjusted_pos
 
 def mouse_get_pressed():
     return pygame.mouse.get_pressed()
@@ -206,13 +242,17 @@ def check_should_quit():
             return True
     return False
 
-display_surface = Surface(is_display=True)
-clock = Clock()
-
-def start_frame(render_surface):
+def start_frame():
+    global render_surface
     render_surface.fill([0,0,0])
 
 def end_frame():
+    global render_surface, window_size, screen_rotation
+    scaled = pygame.transform.scale(render_surface, window_size)
+    if screen_rotation != 0:
+        scaled = pygame.transform.rotate(scaled, screen_rotation)
+
+    display_surface.blit(scaled, (0,0))
     pygame.display.flip()
     clock.tick()
 
@@ -220,9 +260,24 @@ def display_refresh():
     pygame.display.quit()
     pygame.display.init()
 
-def display_init(dimensions, flags) -> Surface:
-    display_surface.surf = pygame.display.set_mode(dimensions, flags)
-    return display_surface
+def display_init(dimensions, rotation, flags):
+    global display_surface, window_size, screen_rotation
+    if rotation % 2 == 0:
+        display_surface = pygame.display.set_mode(dimensions, flags)
+    else:
+        display_surface = pygame.display.set_mode((dimensions[1], dimensions[0]), flags)
+    window_size = dimensions
+    screen_rotation = rotation
+
+def render_init(dimensions):
+    global render_surface, screen_resolution
+    render_surface = pygame.surface.Surface(dimensions).convert_alpha()
+    screen_resolution = dimensions
+
+def render_objects(objects):
+    global render_surface
+    render_items = [(item[0].surf, item[1].rect) for item in objects]
+    render_surface.blits(render_items)
 
 def display_set_caption(caption:str):
     pygame.display.set_caption(caption)
