@@ -36,8 +36,6 @@ class Surface:
     def __init__(self, arg=None):
         if type(arg) is str:
             self.surf = pygame.image.load(arg)
-        elif type(arg) is list or type(arg) is tuple:
-            self.surf = pygame.Surface(arg)
         elif type(arg) is pygame.Surface:
             self.surf = arg
 

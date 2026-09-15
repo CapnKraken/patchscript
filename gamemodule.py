@@ -2174,7 +2174,6 @@ class scriptsystem:
                 if self.parent_obj.render_surface == None:
                     width = ph.get_int('_width')
                     height = ph.get_int('_height')
-                    self.parent_obj.render_surface = backend.Surface([width,height])
                     self.parent_obj.render_rect = backend.Rect([0,0, width,height])
                     self.parent_obj.render_rect.set_center(self.parent_obj.global_pos)
 
