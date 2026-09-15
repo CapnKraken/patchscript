@@ -122,8 +122,7 @@ def main():
 
         # render
         root.render()
-        backend.render_objects(gobj.renderlist)
-        gobj.renderlist.clear()
+        backend.render_objects()
         
         runmusic()
         backend.end_frame()

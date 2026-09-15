@@ -190,6 +190,7 @@ render_surface = None
 window_size = (0, 0)
 screen_resolution = (0, 0)
 screen_rotation = 0
+render_list = []
 clock = Clock()
 
 def keys_get_pressed():
@@ -252,10 +253,14 @@ def render_init(dimensions):
     render_surface = pygame.surface.Surface(dimensions).convert_alpha()
     screen_resolution = dimensions
 
-def render_objects(objects):
-    global render_surface
-    render_items = [(item[0].surf, item[1].rect) for item in objects]
-    render_surface.blits(render_items)
+def add_render_object(item):
+    global render_list
+    render_list.append((item[0].surf, item[1].rect))
+
+def render_objects():
+    global render_surface, render_list
+    render_surface.blits(render_list)
+    render_list.clear()
 
 def display_set_caption(caption:str):
     pygame.display.set_caption(caption)

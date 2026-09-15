@@ -47,8 +47,6 @@ class gobj:
     fonts:dict = {'default':None}     # stores all of the loaded fonts
 
     collision_mask:backend.CollisionMask = None
-    
-    renderlist = []     # all the renderable objects are added to this list each frame
 
     _FINISHED = False   # if this is true, the program ends.
 
@@ -338,10 +336,10 @@ class gobj:
     
     def render(self):
         if self.canvas:
-            gobj.renderlist.append((self.canvas, self.canvas_rect))
+            backend.add_render_object((self.canvas, self.canvas_rect))
         rt = self.getrendertuple()
         if rt:
-            gobj.renderlist.append(rt)
+            backend.add_render_object(rt)
         
         for child in self.children:
             child.render()
