@@ -848,33 +848,28 @@ class playhead:
             return eval_stack[0]
     
     def get_any(self, token):
-        match token:
-            case int() | float():
-                return token
-            case str():
-                try:
-                # See if it's a numeric
-                    # if it's already a float
-                    result = float(token)
-                    return int(result) if result.is_integer() else result
-      
-                except:
-                    # first, see if it's a string
-                    if token[0] == '"':
-                        #print(token, token.strip('"'))
-                        return token.strip('"')
-                    
-                    # then a list
-                    if token[0] == '[':
-                        return self.parse_array_literal(token)
+        try:
+        # See if it's a numeric
+            # if it's already a float
+            result = float(token)
+            return int(result) if result.is_integer() else result
 
-                    # otherwise, see if it's a variable
-                    value = self.getvar(token)
-                    if value == None:
-                        return 0
-                    return value
-            case _:
-                print(f"type is {type(token)}")
+        except:
+            # first, see if it's a string
+            if token[0] == '"':
+                #print(token, token.strip('"'))
+                return token.strip('"')
+            
+            # then a list
+            if token[0] == '[':
+                return self.parse_array_literal(token)
+
+            # otherwise, see if it's a variable
+            value = self.getvar(token)
+            if value == None:
+                return 0
+            return value
+
 
     def get_gobj(self, token):
         try:

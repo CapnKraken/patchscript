@@ -193,13 +193,13 @@ def adjust_mouse_pos(m_pos, win_size, screen_res):
 
 import pstats
 
-do_profiling = False
+do_profiling = True
 
 if do_profiling:
     with cProfile.Profile() as pr:
         main()
         with open( 'profile_output.txt', 'w' ) as f:
-            pstats.Stats(pr, stream=f).strip_dirs().sort_stats("cumtime").print_stats()
+            pstats.Stats(pr, stream=f).strip_dirs().sort_stats("tottime").print_stats()
 else:
     main()
 
