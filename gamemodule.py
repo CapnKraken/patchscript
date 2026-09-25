@@ -1035,6 +1035,1129 @@ class playhead:
 
 #endregion
 
+#region COMMAND STRUCTURES
+command_names = "return end setvar set callstack wait label setattribute " \
+    "getattribute setglob getglob def log broadcast unicast jump eval " \
+    "move setposition translate random angle distance delete string merge " \
+    "append remove insert count copy getindex setindex instance save load " \
+    "unload setsprite updatesprite music sound setcollider collide setmask " \
+    "maskcollide stopscripts stopall draw stamp colorshift getkey fork adopt " \
+    "kidnap changelayer configure".split(' ')
+commands_dict = {}
+for i, item in enumerate(command_names):
+    commands_dict[item] = i
+
+#region command functions
+def cmd_return(self, splitline, ph:playhead):
+    # gets rid of the last element in indexes, causing the script to return to where it was previously
+    ph.pc_stack.pop()
+    ph.stacklen -= 1
+
+def cmd_end(self, splitline, ph:playhead):
+    # end the script
+    ph.is_running = False
+
+def cmd_setvar(self, splitline, ph:playhead):
+    # set a local variable to a value
+    result = ph.get_any(splitline[2])
+    ph.variables[splitline[1]] = result
+
+def cmd_set(self, splitline, ph):
+    # set a variable, attribute, or glob to a value
+    
+    # you add these modifiers to do increments and such
+    try:
+        vartoken = splitline[1]
+        match splitline[2]:
+            case '++':
+                ph.setvar(vartoken, ph.getvar(vartoken) + 1)
+            case '--':
+                ph.setvar(vartoken, ph.getvar(vartoken) - 1)
+            case '+=':
+                ph.setvar(vartoken, ph.getvar(vartoken) + ph.get_numeric(splitline[3]))
+            case '-=':
+                ph.setvar(vartoken, ph.getvar(vartoken) - ph.get_numeric(splitline[3]))
+            case '*=':
+                ph.setvar(vartoken, ph.getvar(vartoken) * ph.get_numeric(splitline[3]))
+            case '/=':
+                ph.setvar(vartoken, ph.getvar(vartoken) / ph.get_numeric(splitline[3]))
+            case '//=':
+                ph.setvar(vartoken, ph.getvar(vartoken) // ph.get_numeric(splitline[3]))
+            case _:
+                result = ph.get_any(splitline[2])
+                ph.setvar(vartoken, result)
+                    
+    except:
+        error("Runtime", "Invalid operation.", "Cannot perform increments on non-numeric types.",ph)
+
+def cmd_callstack(self, splitline, ph):
+    # get a copy of the current playhead's call stack, and store it in a specified variable (or _return)
+    if len(splitline) == 2:
+        resultvar = splitline[1]
+    else:
+        resultvar = "_return"
+    ph.setvar(resultvar, ph.pc_stack.copy())
+
+def cmd_wait(self, splitline, ph):
+    # wait a specified number of frames
+    ph.wait_timer = ph.get_int(splitline[1])
+
+def cmd_label(self, splitline, ph):
+    pass
+
+def cmd_setattribute(self, splitline, ph):
+    if len(splitline) == 4:
+        # specify an object to set the attribute of
+        add = 1
+        obj = ph.get_gobj(splitline[1])
+    else:
+        add = 0
+        obj = self.parent_obj
+    
+    if obj == 0:
+        return
+
+    # set an attribute in the parent object
+    result = ph.get_any(splitline[2+add])
+    obj.set(splitline[1+add], result)
+
+def cmd_getattribute(self, splitline, ph):
+    # for example: getattribute obj health h -> set variable 'h' to obj's attribute 'health'
+    obj = ph.get_gobj(splitline[1])
+    if len(splitline) == 4:
+        resultvar = splitline[3]
+    else:
+        resultvar = "_return"
+
+    if obj == 0:
+        error("Runtime", "ID not found.", f"No such object referred to by {splitline[1]}",ph)
+        ph.setvar(resultvar, 0)
+        return
+    
+    value = obj.get(splitline[2])
+
+    if value == None:
+        error("Runtime", "Attribute not found.", f"No such attribute in {obj.immut_id} ({obj.script_file}): {splitline[2]}",ph)
+        ph.setvar(resultvar, 0)
+    else:
+        ph.setvar(resultvar, value)
+
+def cmd_setglob(self, splitline, ph):
+    # same as setattribute but for global vars
+    # set the value of a global variable in gobj.globs
+
+    result = ph.get_any(splitline[2])
+    gobj.globs[splitline[1]] = result
+
+def cmd_getglob(self, splitline, ph):
+    # same as getattribute but for global vars
+    if len(splitline) == 3:
+        resultvar = splitline[2]
+    else:
+        resultvar = "_return"
+
+    value = gobj.globs.get(splitline[1])
+    if value == None:
+        error("Runtime", "Glob not found.", f"No such global variable: {splitline[2]}",ph)
+        ph.setvar(resultvar, 0)
+    else:
+        ph.setvar(resultvar, value)
+
+def cmd_def(self, splitline, ph):
+    # define a function which can be called later
+    currentindex = ph.stacklen
+    self.functions[splitline[1]] = ph.pc_stack[currentindex]
+    ph.skip_to = commands_dict['return']
+
+def cmd_log(self, splitline, ph):
+    # print out something to the console
+    # to print variable values, just use their names
+    for i in range(1, len(splitline)):
+        value = ph.get_string(splitline[i])
+        if value == None:
+            print(splitline[i], end=" ")
+        else:
+            print(value, end=" ")
+    print()
+
+def cmd_broadcast(self, splitline, ph):
+    # send a message to all objects
+    value = ph.get_string(splitline[1])
+
+    if len(splitline) == 3:
+        # add data to the message. Otherwise, data will be 0.
+        data = ph.get_any(splitline[2])
+    else:
+        data = 0
+    
+    gobj.messages.append(('"' + value + '"', data))
+
+def cmd_unicast(self, splitline, ph):
+    # send a message to one specific object
+    obj = ph.get_gobj(splitline[1])
+    value = ph.get_string(splitline[2])
+
+    if len(splitline) == 4:
+        # add data to the message. Otherwise, data will be 0.
+        data = ph.get_any(splitline[3])
+    else:
+        data = 0
+
+    obj.scriptsys.respond('"' + value + '"', data)
+
+def cmd_jump(self, splitline, ph):
+    # Jumps to a specified line number or labeled position.
+    # jump 5 if var 3 <, for example, jumps to line position 5 if var < 3
+    # Jump conditions are in reverse Polish notation (i.e. postfix)
+
+    if len(splitline) == 2:
+        # unconditional jump, no expression to evaluate
+        currentindex = ph.stacklen
+        jumpto = ph.get_int(splitline[1])
+        ph.pc_stack[currentindex] = jumpto
+    else:
+        # conditional jump
+        condition = False
+
+        result = ph.postfix_eval(splitline[3:])
+        condition = not ph.postfix_check_false(result)
+            
+        if condition:
+            # perform the jump
+            currentindex = ph.stacklen
+            jumpto = ph.get_int(splitline[1])
+            ph.pc_stack[currentindex] = jumpto
+
+def cmd_eval(self, splitline, ph):
+    # evaluate a postfix expression and store the result in a variable
+    expression = splitline[2:len(splitline)]
+    result = ph.postfix_eval(expression)
+    ph.setvar(splitline[1], result)
+
+def cmd_move(self, splitline, ph):
+    # move in a direction and speed
+    dir = ph.get_numeric(splitline[1])
+    mag = ph.get_numeric(splitline[2])
+
+    self.parent_obj.move(self.parent_obj.calculatemotionvector(dir, mag))
+
+def cmd_setposition(self, splitline, ph):
+    # set position to specified coordinates
+    current_x = ph.get_numeric('_x')
+    current_y = ph.get_numeric('_y')
+    new_x = ph.get_numeric(splitline[1])
+    new_y = ph.get_numeric(splitline[2])
+    self.parent_obj.set('_x', new_x)
+    self.parent_obj.set('_y', new_y)
+
+    differential = [new_x-current_x, new_y-current_y]
+    self.parent_obj.global_pos[0] += differential[0]
+    self.parent_obj.global_pos[1] += differential[1]
+    
+    self.parent_obj.move([0,0])
+
+def cmd_translate(self, splitline, ph):
+    delta_x = ph.get_numeric(splitline[1])
+    delta_y = ph.get_numeric(splitline[2])
+    self.parent_obj.move([delta_x, delta_y])
+
+def cmd_random(self, splitline, ph):
+    # example: random xpos 200 500
+    # -sets xpos to a random number between 200 and 500
+
+    if splitline[1] == 'seed':
+        # Seed the rng with the given number
+        srand = ph.get_int(splitline[2])
+        random.seed(srand)
+    else:
+        n1 = ph.get_int(splitline[1])
+        n2 = ph.get_int(splitline[2])
+
+        if len(splitline) == 4:
+            resultvar = splitline[3]
+        else:
+            resultvar = "_return"
+
+        ph.setvar(resultvar, random.randint(n1, n2))
+
+def cmd_angle(self, splitline, ph):
+    # find the angle between 2 points
+    # angle x1 y1 x2 y2 var
+    # -sets var to the vector between point 1 and point 2
+    origin:tuple[int,int] = (ph.get_numeric(splitline[1]), ph.get_numeric(splitline[2]))
+    target:tuple[int,int] = (ph.get_numeric(splitline[3]), ph.get_numeric(splitline[4]))
+
+    # format it so the origin would be (0,0)
+    adjusted = (target[0]-origin[0], target[1]-origin[1])
+    if adjusted[0] == 0:
+        if adjusted[1] > 0:
+            result = 90
+        else:
+            result = 270
+    else:
+        rads = math.atan(adjusted[1]/adjusted[0])
+        
+        result = math.degrees(rads)
+        
+        if adjusted[0] < 0:
+            result += 180
+    
+    if len(splitline) == 6:
+        resultvar = splitline[5]
+    else:
+        resultvar = "_return"
+    ph.setvar(resultvar, result)
+
+def cmd_distance(self, splitline, ph):
+    origin:tuple[int,int] = (ph.get_numeric(splitline[1]), ph.get_numeric(splitline[2]))
+    target:tuple[int,int] = (ph.get_numeric(splitline[3]), ph.get_numeric(splitline[4]))
+
+    # apply distance formula to find distance between 2 points
+    x = target[0] - origin[0]
+    x = x ** 2
+    y = target[1] - origin[1]
+    y = y ** 2
+    
+    if len(splitline) == 6:
+        resultvar = splitline[5]
+    else:
+        resultvar = "_return"
+    ph.setvar(resultvar, math.sqrt(x + y))
+
+def cmd_delete(self, splitline, ph):
+     # delete the object running the script, as long as it's not the scene root
+    if not self.parent_obj.is_root:
+        self.parent_obj.markdead()
+
+        # stop all scripts in the object
+        for item in self.playheads:
+            item.is_running = False
+    else:
+        error("Runtime", "Invalid delete.", "Cannot delete the root object.",ph)
+
+def cmd_string(self, splitline, ph):
+    match splitline[1]:
+        case 'join':
+            # join two or more strings and store them in a variable
+            # ex: string join newstr "Hello " "world"
+            #--> newstr now equals "Hello world"
+            newstr = ""
+            for item in splitline[3:]:
+                newstr += ph.get_string(item)
+            
+            ph.setvar(splitline[2], newstr)
+        case 'split':
+            # split a string based on a delimiter
+            # ex: string split "hello world" " " newstr -> newstr is now ["hello", "world"]
+            string = ph.get_string(splitline[2])
+            
+            delim = ph.get_string(splitline[3])
+            strspl = string.split(delim)
+            
+            if len(splitline) == 5:
+                resultvar = splitline[4]
+            else:
+                resultvar = "_return"
+
+            ph.setvar(resultvar, strspl)
+
+def cmd_merge(self, splitline, ph):
+    # merge two or more lists into one
+    # they will end up being stored in the variable holding the first one
+    result = ph.get_list(splitline[1])
+    for item in splitline[2:]:
+        result.extend(ph.get_list(item))
+    ph.setvar(splitline[1], result)
+
+def cmd_append(self, splitline, ph):
+    # add something or things to the end of a list
+    # append mylist 5 6 7 10
+    if ph.getvar(splitline[1]) == None:
+        result = []
+    else:
+        result = ph.get_list(splitline[1])
+    for item in splitline[2:]:
+        result.append(ph.get_any(item))
+    ph.setvar(splitline[1], result)
+
+def cmd_remove(self, splitline, ph):
+    # remove something from a list at a specified index
+    # option to store the removed item in a variable
+    # ex: remove mylist 5 var --> pop index 5 and store it in var
+    result = ph.get_list(splitline[1])
+    index = ph.get_int(splitline[2])
+
+    if index >= 0 and index < len(result):
+        # we only want to do something if it's a valid index
+        element = result.pop(index)
+        if len(splitline) == 4:
+            # store popped element
+            resultvar = splitline[3]
+        else:
+            resultvar = "_return"
+        ph.setvar(resultvar, element)
+
+        # store the new array
+        ph.setvar(splitline[1], result)
+    else:
+        error("Runtime", "Collection error.", f"Cannot remove index {index} from list {result} of length {len(result)}.",ph)
+
+def cmd_insert(self, splitline, ph):
+    # Insert an item into a list
+    result = ph.get_list(splitline[1])
+    index = ph.get_int(splitline[2])
+    item = ph.get_any(splitline[3])
+
+    if index >= 0 and index < len(result):
+        result.insert(index, item)
+        ph.setvar(splitline[1], result)
+    else:
+        error("Runtime", "Collection error.", f"Cannot insert before index {index} with list {result} of length {len(result)}.",ph)
+
+def cmd_count(self, splitline, ph):
+    # count array_name value storage_var
+    # Determine how many of an item is in a list
+    array:list = ph.get_list(splitline[1])
+    value = ph.get_any(splitline[2])
+
+    result = array.count(value)
+    if len(splitline) == 4:
+        resultvar = splitline[3]
+    else:
+        resultvar = "_return"
+
+    ph.setvar(resultvar,result)
+
+def cmd_copy(self, splitline, ph):
+    # copies a list
+    list1:list = ph.get_list(splitline[1])
+
+    if len(splitline) == 3:
+        resultvar = splitline[2]
+    else:
+        resultvar = "_return"
+    ph.setvar(resultvar, list1.copy())
+
+def cmd_getindex(self, splitline, ph):
+    # get the value at the specified index in a list
+    mylist = ph.get_list(splitline[1])
+    index = ph.get_int(splitline[2])
+
+    if index >= 0 and index < len(mylist):
+        ph.setvar(splitline[3], mylist[index])
+    else:
+        # no index, returns 0
+        error("Runtime", "Collection error.", f"Cannot get index {index} from list {mylist} of length {len(mylist)}.",ph)
+        
+        ph.setvar(splitline[3], 0)
+
+def cmd_setindex(self, splitline, ph):
+    # set the value at the specified list index
+    mylist = ph.get_list(splitline[1])
+    index = ph.get_int(splitline[2])
+
+    if index >= 0 and index < len(mylist):
+        # you add these modifiers to do increments and such
+        try:
+            match splitline[3]:
+                case '++':
+                    mylist[index] += 1
+                case '--':
+                    mylist[index] -= 1
+                case '+=':
+                    mylist[index] += ph.get_numeric(splitline[4])
+                case '-=':
+                    mylist[index] -= ph.get_numeric(splitline[4])
+                case '*=':
+                    mylist[index] *= ph.get_numeric(splitline[4])
+                case '/=':
+                    mylist[index] /= ph.get_numeric(splitline[4])
+                case '//=':
+                    mylist[index] //= ph.get_numeric(splitline[4])
+                case _:
+                    mylist[index] = ph.get_any(splitline[3])
+                        
+        except:
+            error("Runtime", "Invalid operation.", "Cannot perform increments on non-numeric types.",ph)
+    else:
+        # out of bounds, does nothing
+        error("Runtime", "Collection error.", f"Cannot get index {index} from list {mylist} of length {len(mylist)}.",ph)
+
+def cmd_instance(self, splitline, ph):
+    # instance a new gameobject with specified parent and attributes, and (optionally) store its ID in a variable
+    # instance type(script) parent var attributes
+    obj_parent:gobj = ph.get_gobj(splitline[2])
+    obj_type = getpathname(ph.get_string(splitline[1]), 0)
+
+    if len(splitline) == 3 or (len(splitline) >= 3 and '=' in splitline[3]):
+        resultvar = "_return"
+        startpoint = 3
+    else:
+        resultvar = splitline[3]
+        startpoint = 4
+
+    obj_attributes = {}
+
+    
+    transfer_att = '_transform_children'
+    obj_attributes[transfer_att] = ph.get_int(transfer_att)
+
+    for item in splitline[startpoint:]:
+        splitparam = item.split('=')
+        obj_attributes[splitparam[0]] = ph.get_any(splitparam[1])
+
+    new_obj:gobj = gobj(obj_type, obj_attributes, obj_parent.immut_id)
+    obj_parent.children.append(new_obj)
+
+    # you can use '_' for the variable name if you don't want to save it
+    if resultvar != '_':
+        ph.setvar(resultvar, new_obj.immut_id)
+
+def cmd_save(self, splitline, ph):
+    # save a file or image
+    file_path = Path(getpathname(ph.get_string(splitline[2]), 3))
+    file_path.parent.mkdir(parents=True,exist_ok=True)
+
+    match splitline[1]:
+        # save a text file from a list
+        # save file "a.txt" contents
+
+        case 'file':
+            contents = ph.get_list(splitline[3])
+            filename = getpathname(ph.get_string(splitline[2]), 3)
+            with open(filename, mode='w', encoding='utf_8') as file:
+                for item in contents:
+                    file.write(ph.string_rep(item)+'\n')
+        # save an image from the object's canvas
+        case 'canvas':
+            contents = ph.parent_obj.canvas
+            if contents == None:
+                error("Runtime", "Cannot save canvas.", "Object has no canvas.",ph)
+                return
+
+            # Specify the coordinates of the sprite to save on the canvas.
+            dim = []
+            if len(splitline) == 7:
+                for i in range(4):
+                    dim.append(ph.get_int(splitline[i + 3]))
+            else:
+                dim.append(-1)
+                dim[0] = -1
+
+            filename = getpathname(ph.get_string(splitline[2]), 3)
+            if dim[0] == -1:
+                pygame.image.save(contents, filename)
+            else:
+                subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
+                pygame.image.save(contents.subsurface(subrect), filename)
+
+def cmd_load(self, splitline, ph):
+    # load a sprite, sound, font, or text file
+    match splitline[1]:
+        case 'sprite':
+            # ex: load sprite costumename source 0 0 16 32
+            costumename = ph.get_string(splitline[2])
+            
+            # get coordinates and dimensions of sprite to load
+            dim = []
+            if len(splitline) == 8:
+                for i in range(4):
+                    dim.append(ph.get_int(splitline[i + 4]))
+            else:
+                dim.append(-1)
+                dim[0] = -1
+            
+            if splitline[3] == '_self':
+                if ph.parent_obj.canvas == None:
+                    error("Runtime", "Cannot load canvas.", "Object has no canvas.",ph)
+                    return
+                # set the source image to be the canvas
+                atlas = ph.parent_obj.canvas.copy()
+            else:
+                # set the source image to be from a file
+                sourcefilename = getpathname(ph.get_string(splitline[3]), 1)
+                atlas = pygame.image.load(sourcefilename).convert_alpha()
+            
+            if dim[0] == -1:
+                gobj.sprites[costumename] = atlas
+            else:
+                subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
+
+                img = atlas.subsurface(subrect)
+                gobj.sprites[costumename] = img
+        case 'sound':
+            # ex: load sound "shoot" "shoot.ogg" 100
+            soundname = ph.get_string(splitline[2])
+            sourcefilename = getpathname(ph.get_string(splitline[3]), 2)
+            soundobj = pygame.mixer.Sound(sourcefilename)
+            if len(splitline) == 5:
+                millis = ph.get_int(splitline[4])
+            else:
+                #millis = soundobj.get_length() * 1000
+                millis = 0
+            
+            soundobj.set_volume(gobj.globs['_sfx_vol'])
+            gobj.sounds[soundname] = (soundobj, millis)
+        case 'file':
+            # ex: load file "scores.txt" scores_var
+            # stores a list of strings in scores_var, with one element being each line of the file
+            sourcefilename = getpathname(ph.get_string(splitline[2]), 3)
+            result = []
+            try:
+                with open(sourcefilename, mode='r', encoding='utf_8') as file:
+                    for line in file:
+                        result.append(line.strip(' \t\n'))
+            except:
+                # Error message if file does not exist.
+                pass#error("Runtime", "Cannot open file.", f"File {sourcefilename} does not exist.",ph)
+            
+            if len(splitline) == 4:
+                resultvar = splitline[3]
+            else:
+                resultvar = "_return"
+            ph.setvar(resultvar, result)
+        case 'font':
+            # load font "fun font" "myfont.ttf"
+            sourcefilename = getpathname(ph.get_string(splitline[3]), 4)
+            fontname = ph.get_string(splitline[2])
+            try:
+                new_font = pygame.font.Font(sourcefilename,0)
+                gobj.fonts[fontname] = sourcefilename
+            except:
+                error("Runtime", "Cannot load font.", f"{sourcefilename} is not a valid font file.",ph)
+
+def cmd_unload(self, splitline, ph):
+    # unload a sprite, sound, or font 
+    match splitline[1]:
+        case 'sprite':
+            # remove a sprite from the global sprites list
+            costumename = ph.get_string(splitline[2])
+            if costumename in gobj.sprites:
+                gobj.sprites.pop(costumename)
+        case 'sound':
+            # ex: load sound "shoot" "shoot.ogg" 100
+            soundname = ph.get_string(splitline[2])
+            if soundname in gobj.sounds:
+                gobj.sounds.pop(soundname)
+        case 'font':
+            fontname = ph.get_string(splitline[2])
+            if fontname in gobj.fonts:
+                gobj.fonts.pop(fontname)
+
+def cmd_setsprite(self, splitline, ph):
+    if self.parent_obj.render_surface == None:
+        width = ph.get_int('_width')
+        height = ph.get_int('_height')
+        self.parent_obj.render_surface = pygame.Surface((width,height)).convert_alpha()
+        self.parent_obj.render_rect = pygame.Rect((0,0), (width,height))
+        self.parent_obj.render_rect.center = self.parent_obj.global_pos
+
+    match splitline[1]:
+        case "rect":
+            self.parent_obj.set('_sprite', 0)
+            size = (ph.get_int('_width'), ph.get_int('_height'))
+            stroke_width = ph.get_int('_draw_stroke')
+            color = self.parent_obj.get_color()
+            self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
+            draw_rect = pygame.Rect((0,0), size)
+            pygame.draw.rect(self.parent_obj.render_surface, color, draw_rect, stroke_width)
+        case "ellipse":
+            self.parent_obj.set('_sprite', 0)
+            size = (ph.get_int('_width'), ph.get_int('_height'))
+            stroke_width = ph.get_int('_draw_stroke')
+            color = self.parent_obj.get_color()
+            self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
+            draw_rect = pygame.Rect((0,0), size)
+            pygame.draw.ellipse(self.parent_obj.render_surface, color, draw_rect, stroke_width)
+        case _:
+            spritename = ph.get_string(splitline[1])
+            self.parent_obj.set('_sprite', spritename)
+            fliph = ph.get_int('_fliph')
+            flipv = ph.get_int('_flipv')
+            rot = ph.get_numeric('_rotation')
+            result = self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift)
+
+            if result == -1: # sprite not found
+                error("Runtime", "Invalid sprite", f"No sprite named '{spritename}' has been loaded.", playhead=ph)
+                return
+
+def cmd_updatesprite(self, splitline, ph):
+    spritename = self.parent_obj.get('_sprite')
+    fliph = ph.get_int('_fliph')
+    flipv = ph.get_int('_flipv')
+    rot = ph.get_int('_rotation')
+    width = ph.get_int('_width')
+    height = ph.get_int('_height')
+
+    # Update the transform variables
+    self.parent_obj.test_transformations()
+
+    self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift,width, height)
+
+def cmd_music(self, splitline, ph):
+    match splitline[1]:
+        case 'pause':
+            if not gobj.music_paused and pygame.mixer.music.get_busy():
+                gobj.music_pause_pos = pygame.mixer.music.get_pos() - gobj.music_seek_offset
+                gobj.music_paused = True
+
+                pygame.mixer.music.stop()
+        case 'resume':
+            if gobj.music_paused:
+                pygame.mixer_music.play(start=gobj.music_pause_pos/1000.0)
+                gobj.music_seek_offset = -gobj.music_pause_pos
+                gobj.music_paused = False
+        case 'position':
+            current_pos = pygame.mixer.music.get_pos()
+            if len(splitline) > 2:
+                ph.setvar(splitline[2], current_pos - gobj.music_seek_offset)
+            else:
+                ph.setvar('_return', current_pos - gobj.music_seek_offset)
+        case 'seek':
+            old_position = pygame.mixer.music.get_pos() - gobj.music_seek_offset
+            new_position = ph.get_numeric(splitline[2])
+            gobj.music_seek_offset += (old_position - new_position)
+            #print("offset:",gobj.music_seek_offset)
+            #print("newpos", new_position)
+            pygame.mixer.music.set_pos(new_position / 1000)
+        case _:
+            # change the music track currently playing, with a specified fade-out time
+            track = ph.get_string(splitline[1])
+
+            fade = 0
+            if len(splitline) == 3:
+                fade = ph.get_int(splitline[2])
+
+            switchmusic(track, fade)
+            gobj.music_seek_offset = 0
+
+def cmd_sound(self, splitline, ph):
+    match splitline[1]:
+        case 'pause':
+            pygame.mixer.pause()
+        case 'resume':
+            pygame.mixer.unpause()
+        case _:
+            # play a sound effect
+            self.parent_obj.playsound(ph.get_string(splitline[1]))
+
+def cmd_setcollider(self, splitline, ph):
+    # set the size of the collision box
+    if self.parent_obj.collision_rect == None:
+        collider = pygame.Rect(0,0,0,0)
+        self.parent_obj.collision_rect = collider
+
+        # add the collider
+
+        # set the index id of the object. This is used to get the collided object when testing for collisions
+        self.parent_obj.c_index = gobj.collider_count
+        gobj.collider_count += 1
+        gobj.colliders.append(collider)
+        gobj.object_map.append(self.parent_obj.immut_id)
+
+    else:
+        collider = self.parent_obj.collision_rect
+    w = ph.get_int(splitline[1])
+    h = ph.get_int(splitline[2])
+    collider.w = w
+    collider.h = h
+    collider.center = self.parent_obj.global_pos
+
+def cmd_collide(self, splitline, ph):
+    obj:gobj = ph.get_gobj(splitline[1])
+    if obj == 0:
+        error("Runtime", "Invalid collision.", "No such object to collide.",ph)
+        return
+    if obj.collision_rect == None:
+        error("Runtime", "Invalid collision.", "Object does not have a collider.",ph)
+        return
+    
+    match splitline[2]:
+        case 'all':
+            obj.testcollisions(ph)
+        case 'line':
+            # collide with a line, coords given
+            # ex: collide line 00 100 100 -> return true if the line from (0,0) to (100,100) intersects the collider
+
+            line_coords = []
+            for i in range(4):
+                line_coords.append(ph.get_int(splitline[i+3]))
+
+            collider:pygame.Rect = obj.collision_rect
+            clipped = collider.clipline(line_coords)
+            if clipped == ():
+                ph.setvar("_return", 0)
+            else:
+                ph.setvar("_return", 1)
+        case 'point':
+            # collide with a point
+
+            point_coords = []
+            for i in range(2):
+                point_coords.append(ph.get_int(splitline[i+3]))
+
+            collision = obj.collision_rect.collidepoint(point_coords)
+            if collision == False:
+                ph.setvar("_return", 0)
+            else:
+                ph.setvar("_return", 1)
+        case _:
+            # collide with one other object
+            other_obj = ph.get_gobj(splitline[2])
+            if not type(other_obj) is gobj:
+                error("Runtime", "Invalid collision.", f"Can't test collision. No object with ID {other_obj}",ph)
+                return
+            
+            collider = obj.collision_rect
+
+            other_collider:pygame.Rect = other_obj.collision_rect
+            collision = collider.colliderect(other_collider)
+
+            if collision == False:
+                ph.setvar("_return", 0)
+            else:
+                ph.setvar("_return", 1)
+
+def cmd_setmask(self, splitline, ph):
+    if ph.parent_obj.render_surface:
+        ph.parent_obj.collision_mask = pygame.mask.from_surface(ph.parent_obj.render_surface)
+
+def cmd_maskcollide(self, splitline, ph):
+    obj1:gobj; obj2:gobj
+    if len(splitline) == 2:
+        obj1 = ph.parent_obj
+        obj2 = ph.get_gobj(splitline[1])
+    else:
+        obj1 = ph.get_gobj(splitline[1])
+        obj2 = ph.get_gobj(splitline[2])
+
+    result = 0
+    if obj1.collision_mask and obj2.collision_mask:
+        if obj1.render_rect.colliderect(obj2.render_rect):
+            offset = (obj2.render_rect.left - obj1.render_rect.left, obj2.render_rect.top - obj1.render_rect.top)
+            result = obj1.collision_mask.overlap(obj2.collision_mask, offset)
+            if result:
+                result = list(result)
+            else:
+                result = 0
+
+    ph.setvar("_return", result)   
+
+def cmd_stopscripts(self, splitline, ph):
+    # causes all other scripts in the gobj to end
+    for item in self.playheads:
+        if item != ph:
+            item.is_running = False
+
+def cmd_stopall(self, splitline, ph):
+    # end the program, close window, etc.
+    gobj._FINISHED = True
+
+def cmd_draw(self, splitline, ph):
+    draw_obj:gobj = ph.get_gobj(splitline[1])
+    if draw_obj == 0:
+        return
+    if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
+        # create a canvas that spans the screen
+        draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
+        draw_obj.canvas.fill(color=(0,0,0,0))
+        draw_obj.canvas_rect = pygame.Rect((0,0), gobj.resolution)
+    
+    # get the position to draw at
+    draw_position = self.parent_obj.global_pos
+    stroke_width = ph.get_int('_draw_stroke')
+    color = self.parent_obj.get_color()
+    centered = ph.get_int('_draw_centered')
+    match splitline[2]:
+        case 'rect':
+            # ex: draw rect 10 10
+            draw_size = [ph.get_int(splitline[3]), ph.get_int(splitline[4])]
+            if centered == 1:
+                draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
+            
+            rect_corner_args = [-1]*5
+            arg_count = 0
+            for i, n in enumerate(range(5, len(splitline))):
+                arg_count += 1
+                rect_corner_args[i] = ph.get_int(splitline[n])
+            if arg_count == 1:
+                # only one corner argument, apply to all four corners.
+                for i in range(1, len(rect_corner_args)):
+                    rect_corner_args[i] = rect_corner_args[1]
+
+            draw_rect = pygame.Rect(draw_position, draw_size)
+            if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_obj.is_canvas_dirty = True
+                pygame.draw.rect(draw_obj.canvas, color, draw_rect, stroke_width, rect_corner_args[0], rect_corner_args[1], rect_corner_args[2], rect_corner_args[3], rect_corner_args[4])
+        case 'polygon':
+            # ex: draw _self polygon points
+            # points is a list of int values. draw_stroke attribute will be used for width
+            draw_points_list = ph.get_list(splitline[3])
+            if len(draw_points_list)%2 != 0:
+                error("Runtime", "Cannot draw polygon.", f"{draw_points_list} is an incorrect argument for draw polygon.",ph)
+                return
+
+            if centered:
+                # find max width and height, and offset the draw position accordingly
+                draw_position[0] -= max(draw_points_list[::2])//2
+                draw_position[1] -= max(draw_points_list[1::2])//2
+
+            poly_points = []
+            for i in range(0, len(draw_points_list), 2):
+                poly_points.append([draw_points_list[i]+draw_position[0], draw_points_list[i+1]+draw_position[1]])
+            draw_rect = pygame.draw.polygon(draw_obj.canvas, color, poly_points, stroke_width)
+            if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_obj.is_canvas_dirty = True
+        case 'ellipse':
+            draw_size = [ph.get_int(splitline[3]), ph.get_int(splitline[4])]
+            if centered == 1:
+                draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]                    
+
+            draw_rect = pygame.Rect(draw_position, draw_size)
+            if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_obj.is_canvas_dirty = True
+                pygame.draw.ellipse(draw_obj.canvas, color, draw_rect, stroke_width)
+        case 'line':
+            # ex: draw line 0 0 100 100
+            c1 = [ph.get_int(splitline[3]) + draw_position[0], ph.get_int(splitline[4]) + draw_position[1]]
+            c2 = [ph.get_int(splitline[5]) + draw_position[0], ph.get_int(splitline[6]) + draw_position[1]]
+
+            if self.parent_obj.get('_draw_antialiased') == 1:
+                pygame.draw.aaline(draw_obj.canvas, color, c1, c2, stroke_width)
+            else:
+                pygame.draw.line(draw_obj.canvas, color, c1, c2, stroke_width)
+            draw_obj.is_canvas_dirty = True
+        case 'text':
+            # ex: draw text "Hello!"
+            # stroke_width is font size now.
+
+            current_font = gobj.fonts.get(ph.get_string('_draw_font'))
+
+            text_obj = pygame.font.Font(current_font, stroke_width)
+            text = ph.get_string(splitline[3])
+            text_surf = text_obj.render(text, self.parent_obj.get('_draw_antialiased')==1, color)
+            if len(color) == 4:
+                text_surf.set_alpha(color[3])
+            draw_size = text_surf.get_size()
+
+            if centered == 1:
+                draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
+            draw_rect = pygame.Rect(draw_position, draw_size)
+            if draw_rect.colliderect((0,0), gobj.resolution):
+                draw_obj.canvas.blit(text_surf, draw_rect)
+                draw_obj.is_canvas_dirty = True
+        case 'clear':
+            if draw_obj.is_canvas_dirty:
+                draw_obj.canvas.fill(color=(0,0,0,0))
+                draw_obj.is_canvas_dirty = False
+        case _: # default case, try to draw a sprite
+            sprite = gobj.sprites.get(ph.get_string(splitline[2]))
+            if sprite != None:
+                
+                draw_size = sprite.get_size()
+                rotation = 0
+                fliph= False
+                flipv= False
+                if len(splitline) > 3: # rotation
+                    rotation = ph.get_numeric(splitline[3])
+                if len(splitline) > 5: # fliph
+                    fliph = ph.get_int(splitline[5]) == 1
+                if len(splitline) == 7: # flipv
+                    flipv = ph.get_int(splitline[6]) == 1
+                if len(splitline) > 4: # scale factor
+                    scale_factor = ph.get_numeric(splitline[4])
+                    draw_size = (round(draw_size[0] * scale_factor), round(draw_size[1] * scale_factor))
+
+                draw_surf = pygame.transform.rotate(pygame.transform.flip(pygame.transform.scale(sprite, draw_size), fliph, flipv),-rotation)
+                draw_size = draw_surf.get_size()
+
+                if centered == 1:
+                    draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
+                
+                draw_rect = pygame.Rect(draw_position, draw_surf.get_size())
+                if draw_rect.colliderect((0,0), gobj.resolution):
+                    draw_obj.is_canvas_dirty = True
+                    draw_obj.canvas.blit(draw_surf, draw_rect)
+
+def cmd_stamp(self, splitline, ph):
+    draw_obj:gobj = ph.get_gobj(splitline[1])
+    
+    if len(splitline) > 2:
+        obj = ph.get_gobj(splitline[2])
+    else:
+        obj = ph.parent_obj
+
+    if draw_obj == 0 or obj == 0:
+        return
+
+    # ex: stamp _self -> stamps _self gobj onto canvas. Just like Scratch's 'stamp' function
+    if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
+        # create a canvas that spans the screen
+        draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
+        draw_obj.canvas.fill(color=(0,0,0,0))
+        draw_obj.canvas_rect = pygame.Rect((0,0), gobj.resolution)
+    
+    # only stamp it if the object actually has something to stamp
+    if obj.render_surface and obj.render_rect:
+        if obj.render_rect.colliderect((0,0), gobj.globs["_screen_resolution"]):
+            draw_obj.is_canvas_dirty = True
+            draw_obj.canvas.blit(obj.render_surface, obj.render_rect)
+
+def cmd_colorshift(self, splitline, ph):
+    shift_r = ph.get_int(splitline[1])
+    shift_g = ph.get_int(splitline[2])
+    shift_b = ph.get_int(splitline[3])
+
+    if len(splitline) == 5:
+        shift_a = ph.get_int(splitline[4])
+    else:
+        shift_a = 0
+    
+    self.parent_obj.new_color_shift=[shift_r,shift_g,shift_b,shift_a]
+
+def cmd_getkey(self, splitline, ph):
+    # gets the input state of the specified key
+    input = ph.get_string(splitline[1])
+    try:
+        mapped = keymap[input]
+    except:
+        error("Runtime", "Invalid input.", f"'{input}' is not a valid input key.",ph)
+        return
+    
+    if len(splitline) == 3:
+        resultvar = splitline[2]
+    else:
+        resultvar = "_return"
+
+    try:
+        ph.setvar(resultvar, keystates[mapped])
+    except:
+        addkey(input)
+        ph.setvar(resultvar, 0)
+
+def cmd_fork(self, splitline, ph):
+    # spawn a playhead (start a new script at a position)
+    startpoint = ph.get_int(splitline[1])
+    self.playheads.append(playhead(startpoint, self.parent_obj))
+
+def cmd_adopt(self, splitline, ph):
+    # Takes a child object from another object and adds it to its own child list. This cannot be done with the root object.
+    obj:gobj = ph.get_gobj(splitline[1])
+    if obj == 0:
+        error("Runtime", "Invalid Object", f"The object '{splitline[1]}' does not exist.", playhead=ph)
+        return
+    if obj.immut_id == 0:
+        error("Runtime", "Invalid Adoption", f"The command 'adopt' is not valid for the root object.", playhead=ph)
+        return
+    if not self.parent_obj.check_valid_adoption(obj.immut_id):
+        # Check to see if the object being adopted is either itself or one of its ancestors (which would cause a problem)
+        error("Runtime", "Invalid Adoption", f"Object '{self.parent_obj.immut_id}' cannot 'adopt' '{obj.immut_id}' (itself or its ancestor).", playhead=ph)
+        return
+    # After we made it through the checks, we assume it's a valid adoption attempt
+    prev_parent:gobj = gobj.objects[obj.parent_obj]
+    prev_parent.children.remove(obj)
+
+    self.parent_obj.children.append(obj)
+    obj.parent_obj = self.parent_obj.immut_id
+
+def cmd_changelayer(self, splitline, ph):
+    # Re-order this object's children
+    # Ex: changelayer obj1 front (move obj to the front layer, which renders on top)
+    obj:gobj = ph.get_gobj(splitline[1])
+    if obj in self.parent_obj.children:
+        parameter = splitline[2]
+        if parameter == 'front':
+            self.parent_obj.children.remove(obj)
+            self.parent_obj.children.append(obj)
+        elif parameter == 'back':
+            self.parent_obj.children.remove(obj)
+            self.parent_obj.children.insert(0, obj)
+        else:
+            parameter = ph.get_int(splitline[2])
+            current_index = self.parent_obj.children.index(obj)
+            new_index = (current_index + parameter) % len(self.parent_obj.children)
+
+            self.parent_obj.children.remove(obj)
+            self.parent_obj.children.insert(new_index, obj)
+
+    else:
+        error("Runtime", "Cannot Change Layer", f"Object with ID '{obj.immut_id}' is not a child of '{self.parent_obj.immut_id}'", playhead=ph)
+
+def cmd_configure(self, splitline, ph):
+    # special command to edit things like window size or resolution, framerate, caption...
+    match splitline[1]:
+        case 'fullscreen':
+            # configure fullscreen 1
+            sysvars['is_fullscreen'] = ph.get_int(splitline[2]) == 1
+            gobj.apply_fullscreen_change_flag = True
+        case 'screen_resolution':
+            new_value = [abs(ph.get_int(splitline[2])), abs(ph.get_int(splitline[3]))]
+            sysvars['screen_resolution'] = new_value
+            gobj.globs['_screen_resolution'] = new_value
+            gobj.resolution = new_value
+        case 'window_size':
+            new_value = [abs(ph.get_int(splitline[2])), abs(ph.get_int(splitline[3]))]
+            sysvars['window_size'] = new_value
+            gobj.globs['_window_size'] = new_value
+        case 'target_framerate':
+            new_value = abs(ph.get_int(splitline[2]))
+            if new_value == 0:
+                new_value = 1
+            sysvars['target_framerate'] = new_value
+        case 'hide_mouse':
+            sysvars['hide_mouse'] = ph.get_int(splitline[2]) == 1
+        case 'caption':
+            sysvars['caption'] = ph.get_string(splitline[2])
+        case 'busy_wait':
+            sysvars['busy_wait'] = (splitline[2] == '1')
+        case 'screen_rotation':
+            new_rotation = {
+                0: 0,
+                1: 1,
+                2: 2,
+                3: 3,
+                90: 1,
+                180: 2, 
+                270: 3
+            }.get(ph.get_int(splitline[2]))
+
+            if new_rotation != None:
+                sysvars['screen_rotation'] = new_rotation * 90
+        case 'apply':
+            gobj.apply_sysvars_flag = True
+        case _:
+            return
+
+def cmd_default(self, splitline, ph):
+    try:
+        # default case, assume we're calling a function, so move the script index to the function start point
+        ph.pc_stack.append(self.functions[splitline[1]])
+        ph.stacklen += 1
+
+        # set function parameter variables
+        for item in splitline[2:]:
+            splitparam = item.split('=')
+            ph.variables[splitline[1]+'_'+splitparam[0]] = ph.get_any(splitparam[1])
+    except KeyError:
+        error("Runtime", "Invalid Command", f"The command '{splitline[1]}' is not a built-in command or user-defined function.", playhead=ph)
+    except IndexError:
+        error("Runtime", "Invalid Function Call", f"'{' '.join(splitline[1:])}' is not a valid function call. Arguments must use the form '<name>=<value>'.", playhead=ph)
+
+#endregion
+
+command_functions = [
+    cmd_return, cmd_end, cmd_setvar, cmd_set, cmd_callstack, cmd_wait, cmd_label,
+    cmd_setattribute, cmd_getattribute, cmd_setglob, cmd_getglob, cmd_def, cmd_log,
+    cmd_broadcast, cmd_unicast, cmd_jump, cmd_eval, cmd_move, cmd_setposition,
+    cmd_translate, cmd_random, cmd_angle, cmd_distance, cmd_delete, cmd_string, cmd_merge,
+    cmd_append, cmd_remove, cmd_insert, cmd_count, cmd_copy, cmd_getindex, cmd_setindex,
+    cmd_instance, cmd_save, cmd_load, cmd_unload, cmd_setsprite, cmd_updatesprite, cmd_music, 
+    cmd_sound, cmd_setcollider, cmd_collide, cmd_setmask, cmd_maskcollide, cmd_stopscripts,
+    cmd_stopall, cmd_draw, cmd_stamp, cmd_colorshift, cmd_getkey, cmd_fork,
+    cmd_adopt, cmd_adopt, cmd_changelayer, cmd_configure, cmd_default
+]
+#endregion
+
 #region SCRIPTSYSTEM
 
 # class to run an object's scripts
@@ -1580,7 +2703,6 @@ class scriptsystem:
                 self.playheads.append(new_ph)
 
     def script_tick(self):
-        
         self.parent_obj.set('_global_x', self.parent_obj.global_pos[0])
         self.parent_obj.set('_global_y', self.parent_obj.global_pos[1])
 
@@ -1617,7 +2739,7 @@ class scriptsystem:
         # remove finished playheads
         for ph in ph_deletions:
             self.playheads.remove(ph)
-    
+
     def processline(self, line:str, ph:playhead, line_no:int):
         # NOTE: the scripting system is not case-sensitive, so for example 'rEtUrN' is the same as 'return'
 
@@ -1626,1081 +2748,20 @@ class scriptsystem:
         except:
             # split the line based on spaces
             splitline = line.lower().split(' ')
+            firstword = commands_dict.get(splitline[0])
+            if firstword != None:
+                splitline[0] = firstword
+            else:
+                # function call is last command in list
+                splitline.insert(0, -1)
             self.splitscript[line_no] = splitline
         
         # if the line is 'def', skip_to will be set and the script will skip all the lines until a 'return' command is reached.
-        if ph.skip_to:
-            match splitline[0]:
-                case ph.skip_to:
-                    # go back to normal
-                    ph.skip_to = None
-                case _:
-                    pass
+        if ph.skip_to != None:
+            if splitline[0] == ph.skip_to:
+                ph.skip_to = None
             return
-
-        match splitline[0]:
-            case 'return':
-                # gets rid of the last element in indexes, causing the script to return to where it was previously
-                ph.pc_stack.pop()
-                ph.stacklen -= 1
-            case 'end':
-                # end the script
-                ph.is_running = False
-            case 'setvar':
-                # set a local variable to a value
-                result = ph.get_any(splitline[2])
-                ph.variables[splitline[1]] = result
-            case 'set':
-                # set a variable, attribute, or glob to a value
-
-                # you add these modifiers to do increments and such
-                try:
-                    vartoken = splitline[1]
-                    match splitline[2]:
-                        case '++':
-                            ph.setvar(vartoken, ph.getvar(vartoken) + 1)
-                        case '--':
-                            ph.setvar(vartoken, ph.getvar(vartoken) - 1)
-                        case '+=':
-                            ph.setvar(vartoken, ph.getvar(vartoken) + ph.get_numeric(splitline[3]))
-                        case '-=':
-                            ph.setvar(vartoken, ph.getvar(vartoken) - ph.get_numeric(splitline[3]))
-                        case '*=':
-                            ph.setvar(vartoken, ph.getvar(vartoken) * ph.get_numeric(splitline[3]))
-                        case '/=':
-                            ph.setvar(vartoken, ph.getvar(vartoken) / ph.get_numeric(splitline[3]))
-                        case '//=':
-                            ph.setvar(vartoken, ph.getvar(vartoken) // ph.get_numeric(splitline[3]))
-                        case _:
-                            result = ph.get_any(splitline[2])
-                            #ph.variables[splitline[1]] = result
-                            ph.setvar(vartoken, result)
-                                
-                except:
-                    error("Runtime", "Invalid operation.", "Cannot perform increments on non-numeric types.",ph)
-            case 'callstack':
-                # get a copy of the current playhead's call stack, and store it in a specified variable (or _return)
-                if len(splitline) == 2:
-                    resultvar = splitline[1]
-                else:
-                    resultvar = "_return"
-                ph.setvar(resultvar, ph.pc_stack.copy())
-            case 'wait':
-                # wait a specified number of frames
-                ph.wait_timer = ph.get_int(splitline[1])
-            case 'label':
-                pass
-            case 'setattribute':
-                if len(splitline) == 4:
-                    # specify an object to set the attribute of
-                    add = 1
-                    obj = ph.get_gobj(splitline[1])
-                else:
-                    add = 0
-                    obj = self.parent_obj
-                
-                if obj == 0:
-                    return
-
-                # set an attribute in the parent object
-                result = ph.get_any(splitline[2+add])
-                obj.set(splitline[1+add], result)                     
-            case 'getattribute':
-                # for example: getattribute obj health h -> set variable 'h' to obj's attribute 'health'
-                obj = ph.get_gobj(splitline[1])
-                if len(splitline) == 4:
-                    resultvar = splitline[3]
-                else:
-                    resultvar = "_return"
-            
-                if obj == 0:
-                    error("Runtime", "ID not found.", f"No such object referred to by {splitline[1]}",ph)
-                    ph.setvar(resultvar, 0)
-                    return
-                
-                value = obj.get(splitline[2])
-
-                if value == None:
-                    error("Runtime", "Attribute not found.", f"No such attribute in {obj.immut_id} ({obj.script_file}): {splitline[2]}",ph)
-                    ph.setvar(resultvar, 0)
-                else:
-                    ph.setvar(resultvar, value)
-            case 'setglob':
-                # same as setattribute but for global vars
-                # set the value of a global variable in gobj.globs
-
-                result = ph.get_any(splitline[2])
-                gobj.globs[splitline[1]] = result      
-            case 'getglob':
-                # same as getattribute but for global vars
-                if len(splitline) == 3:
-                    resultvar = splitline[2]
-                else:
-                    resultvar = "_return"
-
-                value = gobj.globs.get(splitline[1])
-                if value == None:
-                    error("Runtime", "Glob not found.", f"No such global variable: {splitline[2]}",ph)
-                    ph.setvar(resultvar, 0)
-                else:
-                    ph.setvar(resultvar, value)
-            case 'def':
-                # define a function which can be called later
-                currentindex = ph.stacklen
-                self.functions[splitline[1]] = ph.pc_stack[currentindex]
-                ph.skip_to = 'return'
-            case 'log':
-                # print out something to the console
-                # to print variable values, just use their names
-                for i in range(1, len(splitline)):
-                    value = ph.get_string(splitline[i])
-                    if value == None:
-                        print(splitline[i], end=" ")
-                    else:
-                        print(value, end=" ")
-                print()
-            case 'broadcast':
-                # send a message to all objects
-                value = ph.get_string(splitline[1])
-
-                if len(splitline) == 3:
-                    # add data to the message. Otherwise, data will be 0.
-                    data = ph.get_any(splitline[2])
-                else:
-                    data = 0
-                
-                gobj.messages.append(('"' + value + '"', data))
-            case 'unicast':
-                # send a message to one specific object
-                obj = ph.get_gobj(splitline[1])
-                value = ph.get_string(splitline[2])
-
-                if len(splitline) == 4:
-                    # add data to the message. Otherwise, data will be 0.
-                    data = ph.get_any(splitline[3])
-                else:
-                    data = 0
-
-                obj.scriptsys.respond('"' + value + '"', data)
-            case 'jump':
-                # Jumps to a specified line number or labeled position.
-                # jump 5 if var 3 <, for example, jumps to line position 5 if var < 3
-                # Jump conditions are in reverse Polish notation (i.e. postfix)
-
-                if len(splitline) == 2:
-                    # unconditional jump, no expression to evaluate
-                    currentindex = ph.stacklen
-                    jumpto = ph.get_int(splitline[1])
-                    ph.pc_stack[currentindex] = jumpto
-                else:
-                    # conditional jump
-                    condition = False
-
-                    result = ph.postfix_eval(splitline[3:])
-                    condition = not ph.postfix_check_false(result)
-                     
-                    if condition:
-                        # perform the jump
-                        currentindex = ph.stacklen
-                        jumpto = ph.get_int(splitline[1])
-                        ph.pc_stack[currentindex] = jumpto
-            case 'eval':
-                # evaluate a postfix expression and store the result in a variable
-                expression = splitline[2:len(splitline)]
-                result = ph.postfix_eval(expression)
-                ph.setvar(splitline[1], result)
-            case 'move':
-                # move in a direction and speed
-                dir = ph.get_numeric(splitline[1])
-                mag = ph.get_numeric(splitline[2])
-
-                self.parent_obj.move(self.parent_obj.calculatemotionvector(dir, mag))
-            case 'setposition':
-                # set position to specified coordinates
-                current_x = ph.get_numeric('_x')
-                current_y = ph.get_numeric('_y')
-                new_x = ph.get_numeric(splitline[1])
-                new_y = ph.get_numeric(splitline[2])
-                self.parent_obj.set('_x', new_x)
-                self.parent_obj.set('_y', new_y)
-            
-                differential = [new_x-current_x, new_y-current_y]
-                self.parent_obj.global_pos[0] += differential[0]
-                self.parent_obj.global_pos[1] += differential[1]
-                
-                self.parent_obj.move([0,0])
-            case 'translate':
-                delta_x = ph.get_numeric(splitline[1])
-                delta_y = ph.get_numeric(splitline[2])
-                self.parent_obj.move([delta_x, delta_y])
-            case 'random':
-                # example: random xpos 200 500
-                # -sets xpos to a random number between 200 and 500
-
-                if splitline[1] == 'seed':
-                    # Seed the rng with the given number
-                    srand = ph.get_int(splitline[2])
-                    random.seed(srand)
-                else:
-                    n1 = ph.get_int(splitline[1])
-                    n2 = ph.get_int(splitline[2])
-
-                    if len(splitline) == 4:
-                        resultvar = splitline[3]
-                    else:
-                        resultvar = "_return"
-
-                    ph.setvar(resultvar, random.randint(n1, n2))
-            case 'angle':
-                # find the angle between 2 points
-                # angle x1 y1 x2 y2 var
-                # -sets var to the vector between point 1 and point 2
-                origin:tuple[int,int] = (ph.get_numeric(splitline[1]), ph.get_numeric(splitline[2]))
-                target:tuple[int,int] = (ph.get_numeric(splitline[3]), ph.get_numeric(splitline[4]))
-
-                # format it so the origin would be (0,0)
-                adjusted = (target[0]-origin[0], target[1]-origin[1])
-                if adjusted[0] == 0:
-                    if adjusted[1] > 0:
-                        result = 90
-                    else:
-                        result = 270
-                else:
-                    rads = math.atan(adjusted[1]/adjusted[0])
-                    
-                    result = math.degrees(rads)
-                    
-                    if adjusted[0] < 0:
-                        result += 180
-                
-                if len(splitline) == 6:
-                    resultvar = splitline[5]
-                else:
-                    resultvar = "_return"
-                ph.setvar(resultvar, result)
-            case 'distance':
-                origin:tuple[int,int] = (ph.get_numeric(splitline[1]), ph.get_numeric(splitline[2]))
-                target:tuple[int,int] = (ph.get_numeric(splitline[3]), ph.get_numeric(splitline[4]))
-
-                # apply distance formula to find distance between 2 points
-                x = target[0] - origin[0]
-                x = x ** 2
-                y = target[1] - origin[1]
-                y = y ** 2
-                
-                if len(splitline) == 6:
-                    resultvar = splitline[5]
-                else:
-                    resultvar = "_return"
-                ph.setvar(resultvar, math.sqrt(x + y))
-            case 'delete':
-                # delete the object running the script, as long as it's not the scene root
-                if not self.parent_obj.is_root:
-                    self.parent_obj.markdead()
-
-                    # stop all scripts in the object
-                    for item in self.playheads:
-                        item.is_running = False
-                else:
-                    error("Runtime", "Invalid delete.", "Cannot delete the root object.",ph)
-            case 'string':
-                match splitline[1]:
-                    case 'join':
-                        # join two or more strings and store them in a variable
-                        # ex: string join newstr "Hello " "world"
-                        #--> newstr now equals "Hello world"
-                        newstr = ""
-                        for item in splitline[3:]:
-                            newstr += ph.get_string(item)
-                        
-                        ph.setvar(splitline[2], newstr)
-                    case 'split':
-                        # split a string based on a delimiter
-                        # ex: string split "hello world" " " newstr -> newstr is now ["hello", "world"]
-                        string = ph.get_string(splitline[2])
-                        
-                        delim = ph.get_string(splitline[3])
-                        strspl = string.split(delim)
-                        
-                        if len(splitline) == 5:
-                            resultvar = splitline[4]
-                        else:
-                            resultvar = "_return"
-
-                        ph.setvar(resultvar, strspl)
-            case 'merge':
-                # merge two or more lists into one
-                # they will end up being stored in the variable holding the first one
-                result = ph.get_list(splitline[1])
-                for item in splitline[2:]:
-                    result.extend(ph.get_list(item))
-                ph.setvar(splitline[1], result)
-            case 'append':
-                # add something or things to the end of a list
-                # append mylist 5 6 7 10
-                if ph.getvar(splitline[1]) == None:
-                    result = []
-                else:
-                    result = ph.get_list(splitline[1])
-                for item in splitline[2:]:
-                    result.append(ph.get_any(item))
-                ph.setvar(splitline[1], result)
-            case 'remove':
-                # remove something from a list at a specified index
-                # option to store the removed item in a variable
-                # ex: remove mylist 5 var --> pop index 5 and store it in var
-                result = ph.get_list(splitline[1])
-                index = ph.get_int(splitline[2])
-
-                if index >= 0 and index < len(result):
-                    # we only want to do something if it's a valid index
-                    element = result.pop(index)
-                    if len(splitline) == 4:
-                        # store popped element
-                        resultvar = splitline[3]
-                    else:
-                        resultvar = "_return"
-                    ph.setvar(resultvar, element)
-
-                    # store the new array
-                    ph.setvar(splitline[1], result)
-                else:
-                    error("Runtime", "Collection error.", f"Cannot remove index {index} from list {result} of length {len(result)}.",ph)
-            case 'insert':
-                # Insert an item into a list
-                result = ph.get_list(splitline[1])
-                index = ph.get_int(splitline[2])
-                item = ph.get_any(splitline[3])
-
-                if index >= 0 and index < len(result):
-                    result.insert(index, item)
-                    ph.setvar(splitline[1], result)
-                else:
-                    error("Runtime", "Collection error.", f"Cannot insert before index {index} with list {result} of length {len(result)}.",ph)
-            case 'count':
-                # count array_name value storage_var
-                # Determine how many of an item is in a list
-                array:list = ph.get_list(splitline[1])
-                value = ph.get_any(splitline[2])
-
-                result = array.count(value)
-                if len(splitline) == 4:
-                    resultvar = splitline[3]
-                else:
-                    resultvar = "_return"
-
-                ph.setvar(resultvar,result)
-            case 'copy':
-                # copies a list
-                list1:list = ph.get_list(splitline[1])
-
-                if len(splitline) == 3:
-                    resultvar = splitline[2]
-                else:
-                    resultvar = "_return"
-                ph.setvar(resultvar, list1.copy())
-            case 'getindex':
-                # get the value at the specified index in a list
-                mylist = ph.get_list(splitline[1])
-                index = ph.get_int(splitline[2])
-
-                if index >= 0 and index < len(mylist):
-                    ph.setvar(splitline[3], mylist[index])
-                else:
-                    # no index, returns 0
-                    error("Runtime", "Collection error.", f"Cannot get index {index} from list {mylist} of length {len(mylist)}.",ph)
-                    
-                    ph.setvar(splitline[3], 0)
-            case 'setindex':
-                # set the value at the specified list index
-                mylist = ph.get_list(splitline[1])
-                index = ph.get_int(splitline[2])
-
-                if index >= 0 and index < len(mylist):
-                    # you add these modifiers to do increments and such
-                    try:
-                        match splitline[3]:
-                            case '++':
-                                mylist[index] += 1
-                            case '--':
-                                mylist[index] -= 1
-                            case '+=':
-                                mylist[index] += ph.get_numeric(splitline[4])
-                            case '-=':
-                                mylist[index] -= ph.get_numeric(splitline[4])
-                            case '*=':
-                                mylist[index] *= ph.get_numeric(splitline[4])
-                            case '/=':
-                                mylist[index] /= ph.get_numeric(splitline[4])
-                            case '//=':
-                                mylist[index] //= ph.get_numeric(splitline[4])
-                            case _:
-                                mylist[index] = ph.get_any(splitline[3])
-                                    
-                    except:
-                        error("Runtime", "Invalid operation.", "Cannot perform increments on non-numeric types.",ph)
-                else:
-                    # out of bounds, does nothing
-                    error("Runtime", "Collection error.", f"Cannot get index {index} from list {mylist} of length {len(mylist)}.",ph)
-            case 'instance':
-                # instance a new gameobject with specified parent and attributes, and (optionally) store its ID in a variable
-                # instance type(script) parent var attributes
-                obj_parent:gobj = ph.get_gobj(splitline[2])
-                obj_type = getpathname(ph.get_string(splitline[1]), 0)
-
-                if len(splitline) == 3 or (len(splitline) >= 3 and '=' in splitline[3]):
-                    resultvar = "_return"
-                    startpoint = 3
-                else:
-                    resultvar = splitline[3]
-                    startpoint = 4
-
-                obj_attributes = {}
-
-                
-                transfer_att = '_transform_children'
-                obj_attributes[transfer_att] = ph.get_int(transfer_att)
-
-                for item in splitline[startpoint:]:
-                    splitparam = item.split('=')
-                    obj_attributes[splitparam[0]] = ph.get_any(splitparam[1])
-
-                new_obj:gobj = gobj(obj_type, obj_attributes, obj_parent.immut_id)
-                obj_parent.children.append(new_obj)
-
-                # you can use '_' for the variable name if you don't want to save it
-                if resultvar != '_':
-                    ph.setvar(resultvar, new_obj.immut_id)
-            case 'save':
-                # save a file or image
-                file_path = Path(getpathname(ph.get_string(splitline[2]), 3))
-                file_path.parent.mkdir(parents=True,exist_ok=True)
-
-                match splitline[1]:
-                    # save a text file from a list
-                    # save file "a.txt" contents
-
-                    case 'file':
-                        contents = ph.get_list(splitline[3])
-                        filename = getpathname(ph.get_string(splitline[2]), 3)
-                        with open(filename, mode='w', encoding='utf_8') as file:
-                            for item in contents:
-                                file.write(ph.string_rep(item)+'\n')
-                    # save an image from the object's canvas
-                    case 'canvas':
-                        contents = ph.parent_obj.canvas
-                        if contents == None:
-                            error("Runtime", "Cannot save canvas.", "Object has no canvas.",ph)
-                            return
-            
-                        # Specify the coordinates of the sprite to save on the canvas.
-                        dim = []
-                        if len(splitline) == 7:
-                            for i in range(4):
-                                dim.append(ph.get_int(splitline[i + 3]))
-                        else:
-                            dim.append(-1)
-                            dim[0] = -1
-
-                        filename = getpathname(ph.get_string(splitline[2]), 3)
-                        if dim[0] == -1:
-                            pygame.image.save(contents, filename)
-                        else:
-                            subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
-                            pygame.image.save(contents.subsurface(subrect), filename)
-            case 'load':
-                # load a sprite, sound, font, or text file
-                match splitline[1]:
-                    case 'sprite':
-                        # ex: load sprite costumename source 0 0 16 32
-                        costumename = ph.get_string(splitline[2])
-                        
-                        # get coordinates and dimensions of sprite to load
-                        dim = []
-                        if len(splitline) == 8:
-                            for i in range(4):
-                                dim.append(ph.get_int(splitline[i + 4]))
-                        else:
-                            dim.append(-1)
-                            dim[0] = -1
-                        
-                        if splitline[3] == '_self':
-                            if ph.parent_obj.canvas == None:
-                                error("Runtime", "Cannot load canvas.", "Object has no canvas.",ph)
-                                return
-                            # set the source image to be the canvas
-                            atlas = ph.parent_obj.canvas.copy()
-                        else:
-                            # set the source image to be from a file
-                            sourcefilename = getpathname(ph.get_string(splitline[3]), 1)
-                            atlas = pygame.image.load(sourcefilename).convert_alpha()
-                        
-                        if dim[0] == -1:
-                            gobj.sprites[costumename] = atlas
-                        else:
-                            subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
-
-                            img = atlas.subsurface(subrect)
-                            gobj.sprites[costumename] = img
-                    case 'sound':
-                        # ex: load sound "shoot" "shoot.ogg" 100
-                        soundname = ph.get_string(splitline[2])
-                        sourcefilename = getpathname(ph.get_string(splitline[3]), 2)
-                        soundobj = pygame.mixer.Sound(sourcefilename)
-                        if len(splitline) == 5:
-                            millis = ph.get_int(splitline[4])
-                        else:
-                            #millis = soundobj.get_length() * 1000
-                            millis = 0
-                        
-                        soundobj.set_volume(gobj.globs['_sfx_vol'])
-                        gobj.sounds[soundname] = (soundobj, millis)
-                    case 'file':
-                        # ex: load file "scores.txt" scores_var
-                        # stores a list of strings in scores_var, with one element being each line of the file
-                        sourcefilename = getpathname(ph.get_string(splitline[2]), 3)
-                        result = []
-                        try:
-                            with open(sourcefilename, mode='r', encoding='utf_8') as file:
-                                for line in file:
-                                    result.append(line.strip(' \t\n'))
-                        except:
-                            # Error message if file does not exist.
-                            pass#error("Runtime", "Cannot open file.", f"File {sourcefilename} does not exist.",ph)
-                        
-                        if len(splitline) == 4:
-                            resultvar = splitline[3]
-                        else:
-                            resultvar = "_return"
-                        ph.setvar(resultvar, result)
-                    case 'font':
-                        # load font "fun font" "myfont.ttf"
-                        sourcefilename = getpathname(ph.get_string(splitline[3]), 4)
-                        fontname = ph.get_string(splitline[2])
-                        try:
-                            new_font = pygame.font.Font(sourcefilename,0)
-                            gobj.fonts[fontname] = sourcefilename
-                        except:
-                            error("Runtime", "Cannot load font.", f"{sourcefilename} is not a valid font file.",ph)
-            case 'unload':
-                # unload a sprite, sound, or font 
-                match splitline[1]:
-                    case 'sprite':
-                        # remove a sprite from the global sprites list
-                        costumename = ph.get_string(splitline[2])
-                        if costumename in gobj.sprites:
-                            gobj.sprites.pop(costumename)
-                    case 'sound':
-                        # ex: load sound "shoot" "shoot.ogg" 100
-                        soundname = ph.get_string(splitline[2])
-                        if soundname in gobj.sounds:
-                            gobj.sounds.pop(soundname)
-                    case 'font':
-                        fontname = ph.get_string(splitline[2])
-                        if fontname in gobj.fonts:
-                            gobj.fonts.pop(fontname)
-            case 'setsprite':
-                if self.parent_obj.render_surface == None:
-                    width = ph.get_int('_width')
-                    height = ph.get_int('_height')
-                    self.parent_obj.render_surface = pygame.Surface((width,height)).convert_alpha()
-                    self.parent_obj.render_rect = pygame.Rect((0,0), (width,height))
-                    self.parent_obj.render_rect.center = self.parent_obj.global_pos
-
-                match splitline[1]:
-                    case "rect":
-                        self.parent_obj.set('_sprite', 0)
-                        size = (ph.get_int('_width'), ph.get_int('_height'))
-                        stroke_width = ph.get_int('_draw_stroke')
-                        color = self.parent_obj.get_color()
-                        self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
-                        draw_rect = pygame.Rect((0,0), size)
-                        pygame.draw.rect(self.parent_obj.render_surface, color, draw_rect, stroke_width)
-                    case "ellipse":
-                        self.parent_obj.set('_sprite', 0)
-                        size = (ph.get_int('_width'), ph.get_int('_height'))
-                        stroke_width = ph.get_int('_draw_stroke')
-                        color = self.parent_obj.get_color()
-                        self.parent_obj.render_surface.fill(color=(0,0,0,0)) # clear the surface
-                        draw_rect = pygame.Rect((0,0), size)
-                        pygame.draw.ellipse(self.parent_obj.render_surface, color, draw_rect, stroke_width)
-                    case _:
-                        spritename = ph.get_string(splitline[1])
-                        self.parent_obj.set('_sprite', spritename)
-                        fliph = ph.get_int('_fliph')
-                        flipv = ph.get_int('_flipv')
-                        rot = ph.get_numeric('_rotation')
-                        result = self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift)
-
-                        if result == -1: # sprite not found
-                            error("Runtime", "Invalid sprite", f"No sprite named '{spritename}' has been loaded.", playhead=ph)
-                            return
-            
-            case 'updatesprite':
-                spritename = self.parent_obj.get('_sprite')
-                fliph = ph.get_int('_fliph')
-                flipv = ph.get_int('_flipv')
-                rot = ph.get_int('_rotation')
-                width = ph.get_int('_width')
-                height = ph.get_int('_height')
-
-                # Update the transform variables
-                self.parent_obj.test_transformations()
-
-                self.parent_obj.setsprite(spritename, fliph, flipv, rot, self.parent_obj.new_color_shift,width, height)
-            case 'music':
-
-                match splitline[1]:
-                    case 'pause':
-                        if not gobj.music_paused and pygame.mixer.music.get_busy():
-                            gobj.music_pause_pos = pygame.mixer.music.get_pos() - gobj.music_seek_offset
-                            gobj.music_paused = True
-
-                            pygame.mixer.music.stop()
-                    case 'resume':
-                        if gobj.music_paused:
-                            pygame.mixer_music.play(start=gobj.music_pause_pos/1000.0)
-                            gobj.music_seek_offset = -gobj.music_pause_pos
-                            gobj.music_paused = False
-                    case 'position':
-                        current_pos = pygame.mixer.music.get_pos()
-                        if len(splitline) > 2:
-                            ph.setvar(splitline[2], current_pos - gobj.music_seek_offset)
-                        else:
-                            ph.setvar('_return', current_pos - gobj.music_seek_offset)
-                    case 'seek':
-                        old_position = pygame.mixer.music.get_pos() - gobj.music_seek_offset
-                        new_position = ph.get_numeric(splitline[2])
-                        gobj.music_seek_offset += (old_position - new_position)
-                        #print("offset:",gobj.music_seek_offset)
-                        #print("newpos", new_position)
-                        pygame.mixer.music.set_pos(new_position / 1000)
-                    case _:
-                        # change the music track currently playing, with a specified fade-out time
-                        track = ph.get_string(splitline[1])
-
-                        fade = 0
-                        if len(splitline) == 3:
-                            fade = ph.get_int(splitline[2])
-
-                        switchmusic(track, fade)
-                        gobj.music_seek_offset = 0
-                    
-            case 'sound':
-                match splitline[1]:
-                    case 'pause':
-                        pygame.mixer.pause()
-                    case 'resume':
-                        pygame.mixer.unpause()
-                    case _:
-                        # play a sound effect
-                        self.parent_obj.playsound(ph.get_string(splitline[1]))
-            case 'setcollider':
-                # set the size of the collision box
-                if self.parent_obj.collision_rect == None:
-                    collider = pygame.Rect(0,0,0,0)
-                    self.parent_obj.collision_rect = collider
-
-                    # add the collider
-
-                    # set the index id of the object. This is used to get the collided object when testing for collisions
-                    self.parent_obj.c_index = gobj.collider_count
-                    gobj.collider_count += 1
-                    gobj.colliders.append(collider)
-                    gobj.object_map.append(self.parent_obj.immut_id)
-
-                else:
-                    collider = self.parent_obj.collision_rect
-                w = ph.get_int(splitline[1])
-                h = ph.get_int(splitline[2])
-                collider.w = w
-                collider.h = h
-                collider.center = self.parent_obj.global_pos
-            case 'collide':
-                self.cmd_collide(ph, splitline)
-            case 'setmask':
-                if ph.parent_obj.render_surface:
-                    ph.parent_obj.collision_mask = pygame.mask.from_surface(ph.parent_obj.render_surface)
-            case 'maskcollide':
-                self.cmd_maskcollide(ph, splitline)    
-            case 'stopscripts':
-                # causes all other scripts in the gobj to end
-                for item in self.playheads:
-                    if item != ph:
-                        item.is_running = False
-            case 'stopall':
-                # end the program, close window, etc.
-                gobj._FINISHED = True
-            case 'draw':
-                self.cmd_draw(ph, splitline)
-            case 'stamp':
-                draw_obj:gobj = ph.get_gobj(splitline[1])
-
-                if len(splitline) > 2:
-                    obj = ph.get_gobj(splitline[2])
-                else:
-                    obj = ph.parent_obj
-
-                if draw_obj == 0 or obj == 0:
-                    return
-
-                # ex: stamp _self -> stamps _self gobj onto canvas. Just like Scratch's 'stamp' function
-                if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
-                    # create a canvas that spans the screen
-                    draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
-                    draw_obj.canvas.fill(color=(0,0,0,0))
-                    draw_obj.canvas_rect = pygame.Rect((0,0), gobj.resolution)
-                
-                # only stamp it if the object actually has something to stamp
-                if obj.render_surface and obj.render_rect:
-                    if obj.render_rect.colliderect((0,0), gobj.globs["_screen_resolution"]):
-                        draw_obj.is_canvas_dirty = True
-                        draw_obj.canvas.blit(obj.render_surface, obj.render_rect)
-            case 'colorshift':
-                shift_r = ph.get_int(splitline[1])
-                shift_g = ph.get_int(splitline[2])
-                shift_b = ph.get_int(splitline[3])
-
-                if len(splitline) == 5:
-                    shift_a = ph.get_int(splitline[4])
-                else:
-                    shift_a = 0
-                
-                self.parent_obj.new_color_shift=[shift_r,shift_g,shift_b,shift_a]           
-            case 'getkey':
-                # gets the input state of the specified key
-                input = ph.get_string(splitline[1])
-                try:
-                    mapped = keymap[input]
-                except:
-                    error("Runtime", "Invalid input.", f"'{input}' is not a valid input key.",ph)
-                    return
-                
-                if len(splitline) == 3:
-                    resultvar = splitline[2]
-                else:
-                    resultvar = "_return"
-
-                try:
-                    ph.setvar(resultvar, keystates[mapped])
-                except:
-                    addkey(input)
-                    ph.setvar(resultvar, 0)
-            case 'fork':
-                # spawn a playhead (start a new script at a position)
-                startpoint = ph.get_int(splitline[1])
-                self.playheads.append(playhead(startpoint, self.parent_obj))
-            case 'callstack':
-                # Puts the current call stack (a list of containing the current line and the lines of any functions currently executing) in a variable, or _return if none given.
-                if len(splitline) == 2:
-                    resultvar = splitline[1]
-                else:
-                    resultvar = "_return"
-                
-                ph.setvar(resultvar, ph.pc_stack.copy())
-            case 'adopt' | 'kidnap':
-                # Takes a child object from another object and adds it to its own child list. This cannot be done with the root object.
-                obj:gobj = ph.get_gobj(splitline[1])
-                if obj == 0:
-                    error("Runtime", "Invalid Object", f"The object '{splitline[1]}' does not exist.", playhead=ph)
-                    return
-                if obj.immut_id == 0:
-                    error("Runtime", "Invalid Adoption", f"The command 'adopt' is not valid for the root object.", playhead=ph)
-                    return
-                if not self.parent_obj.check_valid_adoption(obj.immut_id):
-                    # Check to see if the object being adopted is either itself or one of its ancestors (which would cause a problem)
-                    error("Runtime", "Invalid Adoption", f"Object '{self.parent_obj.immut_id}' cannot 'adopt' '{obj.immut_id}' (itself or its ancestor).", playhead=ph)
-                    return
-                # After we made it through the checks, we assume it's a valid adoption attempt
-                prev_parent:gobj = gobj.objects[obj.parent_obj]
-                prev_parent.children.remove(obj)
-
-                self.parent_obj.children.append(obj)
-                obj.parent_obj = self.parent_obj.immut_id
-            case 'changelayer':
-                # Re-order this object's children
-                # Ex: changelayer obj1 front (move obj to the front layer, which renders on top)
-                obj:gobj = ph.get_gobj(splitline[1])
-                if obj in self.parent_obj.children:
-                    parameter = splitline[2]
-                    if parameter == 'front':
-                        self.parent_obj.children.remove(obj)
-                        self.parent_obj.children.append(obj)
-                    elif parameter == 'back':
-                        self.parent_obj.children.remove(obj)
-                        self.parent_obj.children.insert(0, obj)
-                    else:
-                        parameter = ph.get_int(splitline[2])
-                        current_index = self.parent_obj.children.index(obj)
-                        new_index = (current_index + parameter) % len(self.parent_obj.children)
-
-                        self.parent_obj.children.remove(obj)
-                        self.parent_obj.children.insert(new_index, obj)
-
-                else:
-                    error("Runtime", "Cannot Change Layer", f"Object with ID '{obj.immut_id}' is not a child of '{self.parent_obj.immut_id}'", playhead=ph)
-            case 'configure':
-                # special command to edit things like window size or resolution, framerate, caption...
-                match splitline[1]:
-                    case 'fullscreen':
-                        # configure fullscreen 1
-                        sysvars['is_fullscreen'] = ph.get_int(splitline[2]) == 1
-                        gobj.apply_fullscreen_change_flag = True
-                    case 'screen_resolution':
-                        new_value = [abs(ph.get_int(splitline[2])), abs(ph.get_int(splitline[3]))]
-                        sysvars['screen_resolution'] = new_value
-                        gobj.globs['_screen_resolution'] = new_value
-                        gobj.resolution = new_value
-                    case 'window_size':
-                        new_value = [abs(ph.get_int(splitline[2])), abs(ph.get_int(splitline[3]))]
-                        sysvars['window_size'] = new_value
-                        gobj.globs['_window_size'] = new_value
-                    case 'target_framerate':
-                        new_value = abs(ph.get_int(splitline[2]))
-                        if new_value == 0:
-                            new_value = 1
-                        sysvars['target_framerate'] = new_value
-                    case 'hide_mouse':
-                        sysvars['hide_mouse'] = ph.get_int(splitline[2]) == 1
-                    case 'caption':
-                        sysvars['caption'] = ph.get_string(splitline[2])
-                    case 'busy_wait':
-                        sysvars['busy_wait'] = (splitline[2] == '1')
-                    case 'screen_rotation':
-                        new_rotation = {
-                            0: 0,
-                            1: 1,
-                            2: 2,
-                            3: 3,
-                            90: 1,
-                            180: 2, 
-                            270: 3
-                        }.get(ph.get_int(splitline[2]))
-
-                        if new_rotation != None:
-                            sysvars['screen_rotation'] = new_rotation * 90
-                    case 'apply':
-                        gobj.apply_sysvars_flag = True
-                    case _:
-                        return
-            case _:
-                try:
-                    # default case, assume we're calling a function, so move the script index to the function start point
-                    ph.pc_stack.append(self.functions[splitline[0]])
-                    ph.stacklen += 1
-
-                    # set function parameter variables
-                    for item in splitline[1:]:
-                        splitparam = item.split('=')
-                        ph.variables[splitline[0]+'_'+splitparam[0]] = ph.get_any(splitparam[1])
-                except KeyError:
-                    error("Runtime", "Invalid Command", f"The command '{splitline[0]}' is not a built-in command or user-defined function.", playhead=ph)
-                except IndexError:
-                    error("Runtime", "Invalid Function Call", f"'{line}' is not a valid function call. Arguments must use the form '<name>=<value>'.", playhead=ph)
-
-    def cmd_maskcollide(self, ph:playhead, splitline:list[str]):
-        obj1:gobj; obj2:gobj
-        if len(splitline) == 2:
-            obj1 = ph.parent_obj
-            obj2 = ph.get_gobj(splitline[1])
-        else:
-            obj1 = ph.get_gobj(splitline[1])
-            obj2 = ph.get_gobj(splitline[2])
-
-        result = 0
-        if obj1.collision_mask and obj2.collision_mask:
-            if obj1.render_rect.colliderect(obj2.render_rect):
-                offset = (obj2.render_rect.left - obj1.render_rect.left, obj2.render_rect.top - obj1.render_rect.top)
-                result = obj1.collision_mask.overlap(obj2.collision_mask, offset)
-                if result:
-                    result = list(result)
-                else:
-                    result = 0
-
-        ph.setvar("_return", result)   
-
-    def cmd_collide(self, ph:playhead, splitline:list[str]):
-        obj:gobj = ph.get_gobj(splitline[1])
-        if obj == 0:
-            error("Runtime", "Invalid collision.", "No such object to collide.",ph)
-            return
-        if obj.collision_rect == None:
-            error("Runtime", "Invalid collision.", "Object does not have a collider.",ph)
-            return
-        
-        match splitline[2]:
-            case 'all':
-                obj.testcollisions(ph)
-            case 'line':
-                # collide with a line, coords given
-                # ex: collide line 00 100 100 -> return true if the line from (0,0) to (100,100) intersects the collider
-
-                line_coords = []
-                for i in range(4):
-                    line_coords.append(ph.get_int(splitline[i+3]))
-
-                collider:pygame.Rect = obj.collision_rect
-                clipped = collider.clipline(line_coords)
-                if clipped == ():
-                    ph.setvar("_return", 0)
-                else:
-                    ph.setvar("_return", 1)
-            case 'point':
-                # collide with a point
-
-                point_coords = []
-                for i in range(2):
-                    point_coords.append(ph.get_int(splitline[i+3]))
-
-                collision = obj.collision_rect.collidepoint(point_coords)
-                if collision == False:
-                    ph.setvar("_return", 0)
-                else:
-                    ph.setvar("_return", 1)
-            case _:
-                # collide with one other object
-                other_obj = ph.get_gobj(splitline[2])
-                if not type(other_obj) is gobj:
-                    error("Runtime", "Invalid collision.", f"Can't test collision. No object with ID {other_obj}",ph)
-                    return
-                
-                collider = obj.collision_rect
-
-                other_collider:pygame.Rect = other_obj.collision_rect
-                collision = collider.colliderect(other_collider)
-
-                if collision == False:
-                    ph.setvar("_return", 0)
-                else:
-                    ph.setvar("_return", 1)
-
-    def cmd_draw(self, ph:playhead, splitline:list[str]):
-        draw_obj:gobj = ph.get_gobj(splitline[1])
-        if draw_obj == 0:
-            return
-        if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
-            # create a canvas that spans the screen
-            draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
-            draw_obj.canvas.fill(color=(0,0,0,0))
-            draw_obj.canvas_rect = pygame.Rect((0,0), gobj.resolution)
-        
-        # get the position to draw at
-        draw_position = self.parent_obj.global_pos
-        stroke_width = ph.get_int('_draw_stroke')
-        color = self.parent_obj.get_color()
-        centered = ph.get_int('_draw_centered')
-        match splitline[2]:
-            case 'rect':
-                # ex: draw rect 10 10
-                draw_size = [ph.get_int(splitline[3]), ph.get_int(splitline[4])]
-                if centered == 1:
-                    draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
-                
-                rect_corner_args = [-1]*5
-                arg_count = 0
-                for i, n in enumerate(range(5, len(splitline))):
-                    arg_count += 1
-                    rect_corner_args[i] = ph.get_int(splitline[n])
-                if arg_count == 1:
-                    # only one corner argument, apply to all four corners.
-                    for i in range(1, len(rect_corner_args)):
-                        rect_corner_args[i] = rect_corner_args[1]
-
-                draw_rect = pygame.Rect(draw_position, draw_size)
-                if draw_rect.colliderect((0,0), gobj.resolution):
-                    draw_obj.is_canvas_dirty = True
-                    pygame.draw.rect(draw_obj.canvas, color, draw_rect, stroke_width, rect_corner_args[0], rect_corner_args[1], rect_corner_args[2], rect_corner_args[3], rect_corner_args[4])
-            case 'polygon':
-                # ex: draw _self polygon points
-                # points is a list of int values. draw_stroke attribute will be used for width
-                draw_points_list = ph.get_list(splitline[3])
-                if len(draw_points_list)%2 != 0:
-                    error("Runtime", "Cannot draw polygon.", f"{draw_points_list} is an incorrect argument for draw polygon.",ph)
-                    return
-
-                if centered:
-                    # find max width and height, and offset the draw position accordingly
-                    draw_position[0] -= max(draw_points_list[::2])//2
-                    draw_position[1] -= max(draw_points_list[1::2])//2
-
-                poly_points = []
-                for i in range(0, len(draw_points_list), 2):
-                    poly_points.append([draw_points_list[i]+draw_position[0], draw_points_list[i+1]+draw_position[1]])
-                draw_rect = pygame.draw.polygon(draw_obj.canvas, color, poly_points, stroke_width)
-                if draw_rect.colliderect((0,0), gobj.resolution):
-                    draw_obj.is_canvas_dirty = True
-            case 'ellipse':
-                draw_size = [ph.get_int(splitline[3]), ph.get_int(splitline[4])]
-                if centered == 1:
-                    draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]                    
-
-                draw_rect = pygame.Rect(draw_position, draw_size)
-                if draw_rect.colliderect((0,0), gobj.resolution):
-                    draw_obj.is_canvas_dirty = True
-                    pygame.draw.ellipse(draw_obj.canvas, color, draw_rect, stroke_width)
-            case 'line':
-                # ex: draw line 0 0 100 100
-                c1 = [ph.get_int(splitline[3]) + draw_position[0], ph.get_int(splitline[4]) + draw_position[1]]
-                c2 = [ph.get_int(splitline[5]) + draw_position[0], ph.get_int(splitline[6]) + draw_position[1]]
-
-                if self.parent_obj.get('_draw_antialiased') == 1:
-                    pygame.draw.aaline(draw_obj.canvas, color, c1, c2, stroke_width)
-                else:
-                    pygame.draw.line(draw_obj.canvas, color, c1, c2, stroke_width)
-                draw_obj.is_canvas_dirty = True
-            case 'text':
-                # ex: draw text "Hello!"
-                # stroke_width is font size now.
-
-                current_font = gobj.fonts.get(ph.get_string('_draw_font'))
-
-                text_obj = pygame.font.Font(current_font, stroke_width)
-                text = ph.get_string(splitline[3])
-                text_surf = text_obj.render(text, self.parent_obj.get('_draw_antialiased')==1, color)
-                if len(color) == 4:
-                    text_surf.set_alpha(color[3])
-                draw_size = text_surf.get_size()
-
-                if centered == 1:
-                    draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
-                draw_rect = pygame.Rect(draw_position, draw_size)
-                if draw_rect.colliderect((0,0), gobj.resolution):
-                    draw_obj.canvas.blit(text_surf, draw_rect)
-                    draw_obj.is_canvas_dirty = True
-            case 'clear':
-                if draw_obj.is_canvas_dirty:
-                    draw_obj.canvas.fill(color=(0,0,0,0))
-                    draw_obj.is_canvas_dirty = False
-            case _: # default case, try to draw a sprite
-                sprite = gobj.sprites.get(ph.get_string(splitline[2]))
-                if sprite != None:
-                    
-                    draw_size = sprite.get_size()
-                    rotation = 0
-                    fliph= False
-                    flipv= False
-                    if len(splitline) > 3: # rotation
-                        rotation = ph.get_numeric(splitline[3])
-                    if len(splitline) > 5: # fliph
-                        fliph = ph.get_int(splitline[5]) == 1
-                    if len(splitline) == 7: # flipv
-                        flipv = ph.get_int(splitline[6]) == 1
-                    if len(splitline) > 4: # scale factor
-                        scale_factor = ph.get_numeric(splitline[4])
-                        draw_size = (round(draw_size[0] * scale_factor), round(draw_size[1] * scale_factor))
-
-                    draw_surf = pygame.transform.rotate(pygame.transform.flip(pygame.transform.scale(sprite, draw_size), fliph, flipv),-rotation)
-                    draw_size = draw_surf.get_size()
-
-                    if centered == 1:
-                        draw_position = [draw_position[0]-(draw_size[0]//2), draw_position[1]-(draw_size[1]//2)]
-                    
-                    draw_rect = pygame.Rect(draw_position, draw_surf.get_size())
-                    if draw_rect.colliderect((0,0), gobj.resolution):
-                        draw_obj.is_canvas_dirty = True
-                        draw_obj.canvas.blit(draw_surf, draw_rect)
-#endregion
-
+        command_functions[splitline[0]](self, splitline, ph)
 #endregion
 
 #region ERROR REPORTING
