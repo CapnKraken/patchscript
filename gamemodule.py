@@ -591,6 +591,11 @@ def getpathname(givenpath:str, filetype:int):
 
 #region PLAYHEAD
 
+# wrapper for string to identify variable names
+class identifier:
+    def __init__(self, name):
+        self.name = name
+
 # class to keep track of data for independently running scripts
 class playhead:
     def __init__(self, startindex, parent_obj:gobj):
@@ -610,49 +615,44 @@ class playhead:
         print('running:', self.is_running)
         print('skip:', self.skip_to)
         print('vars:', self.variables)
-    
-    def postfix_check_false(self, item):
-        match item:
-            case int():
-                return item == 0
-            case float():
-                return item == 0.0
-            case str():
-                return item == ""
-            case list():
-                return item == []
-        return False
 
     # Evaluate a postfix (operators following operands) expression.
     def postfix_eval(self, expression:list):
         eval_stack = []
         # In this scheme, '^' is power, '~' is xor.
         stacklen = 0
+        def pop_op():
+            op = eval_stack.pop()
+            result = op
+            if type(op) is identifier:
+                result = self.getvar(op.name)
+            elif type(op) is str and len(op) > 0:
+                if op[0] == '[':
+                    result = self.parse_array_literal(op)
+            return result
 
         for item in expression:
-            if item in operators:
+            if type(item) is Operator:
+
+                op_class = item.op_class
+                op_name = item.op_name
 
                 result = 0
-
-                if item in {'not', 'len', 'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'lower', 'upper', 'abs', 'round', 'int', 'float', 'str'}:
+                if op_class == 'unary':
                     # Handle unary operators
 
                     if stacklen < 1:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item}'.", self)
                         return 0
                     
-                    op1 = eval_stack.pop()
-                    if type(op1) is str:
-                        op1 = self.get_any(op1)
-                    elif type(op1) is float and op1.is_integer():
-                        op1 = int(op1)
+                    op1 = pop_op()
                     stacklen -= 1
 
-                    match item:
+                    match op_name:
                         case 'not':
                             # Handle the unary 'not' operator
                             # If the item is equivalent to false, 'not' will set it to true, that is, 1. Otherwise it'll be set to 0.
-                            if self.postfix_check_false(op1):
+                            if not op1:
                                 result = 1
                         case 'len':
                             # length of a string or list
@@ -699,63 +699,60 @@ class playhead:
                                 return 0
                         case 'str':
                             result = self.string_rep(op1)
-                        case _:
-                            # Trig unary operators
-                            if item in {'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan'}:
-                                try:
-                                    in_rads = math.radians(op1)
-                                    match item:
-                                        case "sin":
-                                            result = math.sin(in_rads)
-                                        case "cos":
-                                            result = math.cos(in_rads)
-                                        case "tan":
-                                            result = math.tan(in_rads)
-                                        case "arcsin":
-                                            result = math.asin(in_rads)
-                                        case "arccos":
-                                            result = math.acos(in_rads)
-                                        case "arctan":
-                                            result = math.atan(in_rads)
-                                except:
-                                    error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be int or float.", self)   
-                                    return 0  
+                                
+                elif op_class == 'trig':
+
+                    if stacklen < 1:
+                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item}'.", self)
+                        return 0
+                    
+                    op1 = pop_op()
+                    stacklen -= 1
+
+                    try:
+                        in_rads = math.radians(op1)
+                        match op_name:
+                            case 'sin':
+                                result = math.sin(in_rads)
+                            case 'cos':
+                                result = math.cos(in_rads)
+                            case 'tan':
+                                result = math.tan(in_rads)
+                            case 'arcsin':
+                                result = math.asin(in_rads)
+                            case 'arccos':
+                                result = math.acos(in_rads)
+                            case 'arctan':
+                                result = math.atan(in_rads)
+                    except:
+                        error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be int or float.", self)   
+                        return 0  
                 else:
                     # All other operators require two operands
                     if stacklen < 2:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item}'.", self)
                         return 0
                     
-                    op2 = eval_stack.pop()
-                    op1 = eval_stack.pop()
-
-                    if type(op2) is str:
-                        op2 = self.get_any(op2)
-                    elif type(op2) is float and op2.is_integer():
-                        op2 = int(op2)
-
-                    if type(op1) is str:
-                        op1 = self.get_any(op1)
-                    elif type(op1) is float and op1.is_integer():
-                        op1 = int(op1)
+                    op2 = pop_op()
+                    op1 = pop_op()
                     
                     stacklen -= 2
 
                     # Testing the operators ascending order of rigidity
-                    if item in {'and', 'or', '==', '!='}:
+                    if op_class == 'all':
                         # These ones work with all data types
-                        match item:
+                        match op_name:
                             case 'and':
-                                if not (self.postfix_check_false(op1) or self.postfix_check_false(op2)):
+                                if op1 and op2:
                                     result = 1
                             case 'or':
-                                if not (self.postfix_check_false(op1) and self.postfix_check_false(op2)):
+                                if op1 or op2:
                                     result = 1
                             case '==':
                                 result = int(op1 == op2)
                             case '!=':
                                 result = int(op1 != op2)
-                    elif item == '`': # array subscript operator
+                    elif op_name == '`': # array subscript operator
                         try:
                             if op2 < 0 or op2 >= len(op1):
                                 error("Runtime", "Evaluation error.", f"Index {op2} is out of range. Must be between 0 and {len(op1)-1}.", self)
@@ -771,15 +768,15 @@ class playhead:
                             return 0
                         
                         has_strings = (type(op1) is str or type(op2) is str)
-                        if item == '+' and has_strings:
+                        if op_name == '+' and has_strings:
                             result = self.string_rep(op1) + self.string_rep(op2)
 
-                        elif item in {'+', '<', '>', '<=', '>='}:
+                        elif op_class == 'strnum':
                             #if not (type(op1) is str and type(op2) is str) and (type(op1) is str or type(op2) is str):
                             if has_strings:
                                 error("Runtime", "Evaluation error.", f"Incompatible types '{type(op1)}' and '{type(op2)}' for operator '{item}'.", self)
                                 return 0
-                            match item:
+                            match op_name:
                                 case '+':
                                     result = op1 + op2
                                 case '<':
@@ -796,8 +793,8 @@ class playhead:
                                 error("Runtime", "Evaluation error.", f"Invalid type 'string' for operator '{item}'.", self)
                                 return 0
                             
-                            if item in {'-', '*', '/', '//', '^'}:
-                                match item:
+                            if op_class == 'num':
+                                match op_name:
                                     case '-':
                                         result = op1 - op2
                                     case '*':
@@ -805,7 +802,7 @@ class playhead:
                                     case '/':
                                         result = op1 / op2
                                     case '//':
-                                        result = op1 // op2
+                                        result = int(op1 // op2)
                                     case '^':
                                         result = op1 ** op2
                             else:
@@ -814,7 +811,7 @@ class playhead:
                                     error("Runtime", "Evaluation error.", f"Invalid type 'float' for operator '{item}'.", self)
                                     return 0
                                 
-                                match(item):
+                                match op_name:
                                     case '%':
                                         result = op1 % op2
                                     case '&':
@@ -826,19 +823,16 @@ class playhead:
                                     case '<<': # left shift
                                         result = op1 << op2
                                     case '>>': # right shift
-                                        result = op1 >> op2
-                if type(result) is str:
-                    eval_stack.append('"' + result)
-                    #print(eval_stack)
-                else:   
-                    eval_stack.append(result)
+                                        result = op1 >> op2   
+                eval_stack.append(result)
                 stacklen += 1
                             
             else:
                 eval_stack.append(item) # add an operand
                 stacklen += 1
-        
+
         if stacklen != 1:
+            print(eval_stack)
             # Should have one element in it after running through entire list.
             error("Runtime", "Invalid expression.", f"Expression {expression} does not evaluate to a single answer.", self)
             return 0
@@ -1217,10 +1211,7 @@ def cmd_jump(self, splitline, ph):
         ph.pc_stack[currentindex] = jumpto
     else:
         # conditional jump
-        condition = False
-
-        result = ph.postfix_eval(splitline[3:])
-        condition = not ph.postfix_check_false(result)
+        condition = ph.postfix_eval(splitline[3:])
             
         if condition:
             # perform the jump
@@ -1358,7 +1349,6 @@ def cmd_string(self, splitline, ph):
                 resultvar = splitline[4]
             else:
                 resultvar = "_return"
-
             ph.setvar(resultvar, strspl)
 
 def cmd_merge(self, splitline, ph):
@@ -1572,18 +1562,18 @@ def cmd_load(self, splitline, ph):
                     error("Runtime", "Cannot load canvas.", "Object has no canvas.",ph)
                     return
                 # set the source image to be the canvas
-                atlas = ph.parent_obj.canvas.copy()
+                atlas = ph.parent_obj.canvas
             else:
                 # set the source image to be from a file
                 sourcefilename = getpathname(ph.get_string(splitline[3]), 1)
                 atlas = pygame.image.load(sourcefilename).convert_alpha()
             
             if dim[0] == -1:
-                gobj.sprites[costumename] = atlas
+                gobj.sprites[costumename] = atlas.copy()
             else:
                 subrect = pygame.Rect(dim[0], dim[1], dim[2], dim[3])
 
-                img = atlas.subsurface(subrect)
+                img = atlas.subsurface(subrect).copy()
                 gobj.sprites[costumename] = img
         case 'sound':
             # ex: load sound "shoot" "shoot.ogg" 100
@@ -2156,6 +2146,41 @@ command_functions = [
     cmd_stopall, cmd_draw, cmd_stamp, cmd_colorshift, cmd_getkey, cmd_fork,
     cmd_adopt, cmd_adopt, cmd_changelayer, cmd_configure, cmd_default
 ]
+
+keyword_names = "".split(' ')
+keywords_dict = {}
+for i, item in enumerate(keyword_names):
+    keywords_dict[item] = i
+
+class Operator:
+    op_class:int
+    op_name:str
+    def __init__(self, op_name):
+        self.op_name = op_name
+        match op_name:
+            case 'not' | 'len' | 'lower' | 'upper' | 'abs' | 'round' | 'int' | 'float' | 'str':
+                self.op_class = 'unary'
+            case 'sin' | 'cos' | 'tan' | 'arcsin' | 'arccos' | 'arctan':
+                self.op_class = 'trig'
+            case 'and' | 'or' | '==' | '!=':
+                self.op_class = 'all'
+            case '`':
+                self.op_class = 'list'
+            case '+' | '<' | '>' | '<=' | '>=':
+                self.op_class = 'strnum'
+            case '-' | '*' | '/' | '//' | '^':
+                self.op_class = 'num'
+            case '%' | '&' | '|' | '~' | '<<' | '>>':
+                self.op_class = 'int'
+operator_list = "not len sin cos tan arcsin arccos arctan" \
+"lower upper abs round int float str and or == != ` + < > <= >= " \
+"- * / // ^ % & | ~ << >>".split()
+
+operator_dict = {}
+
+for op in operator_list:
+    operator_dict[op] = Operator(op)
+
 #endregion
 
 #region SCRIPTSYSTEM
@@ -2740,6 +2765,31 @@ class scriptsystem:
         for ph in ph_deletions:
             self.playheads.remove(ph)
 
+    def pre_parse_eval(self, splitline:list, is_jump=False):
+        break_point = 2
+        if is_jump:
+            break_point = 3
+        result_arr = splitline[0:break_point]
+        for item in splitline[break_point:]:
+            result = item
+            try:
+                result = float(item)
+                result = int(result) if result.is_integer() else result
+            except:
+                if item[0] == '"':
+                    result = item.strip('"')
+                elif item[0] == '[':
+                    # TODO can't preparse array lit yet, need identifiers
+                    result = item
+                elif item in operator_list:
+                    result = operator_dict[item]
+                else:
+                    result = identifier(item)
+                    
+            result_arr.append(result)
+        return result_arr
+
+
     def processline(self, line:str, ph:playhead, line_no:int):
         # NOTE: the scripting system is not case-sensitive, so for example 'rEtUrN' is the same as 'return'
 
@@ -2751,6 +2801,10 @@ class scriptsystem:
             firstword = commands_dict.get(splitline[0])
             if firstword != None:
                 splitline[0] = firstword
+                if firstword == commands_dict['eval']:
+                    splitline = self.pre_parse_eval(splitline)
+                elif firstword == commands_dict['jump']:
+                    splitline = self.pre_parse_eval(splitline, True)
             else:
                 # function call is last command in list
                 splitline.insert(0, -1)
@@ -2771,6 +2825,7 @@ class error:
     last_errs:list = []
 
     def __init__(self, err_type:str, label:str, info:str, playhead:playhead=None, obj_id:int=0, script:str="", pc_stack:list[int]=[], code="", hide_errors=False):
+        
         if playhead == None:
             self.err_type = err_type
             self.obj_id = obj_id
@@ -2807,6 +2862,7 @@ class error:
         error.last_errs.append(self)
         if not self.hide_errors:
             self.print_err()
+            sys.exit()
 
         if self.err_type != "Load":
             gobj.trap_error(self.obj_id, self.label)
