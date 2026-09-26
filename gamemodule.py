@@ -376,7 +376,7 @@ class gobj:
         else:
             spr = gobj.sprites.get(sprite)
 
-            if spr == None:
+            if spr is None:
                 return -1
             else:
                 surf = pygame.transform.flip(spr, fliph, flipv)
@@ -487,7 +487,7 @@ class gobj:
         # calculate actual speed vector
 
         # make sure the values exist
-        if magnitude == None or direction == None:
+        if magnitude is None or direction is None:
             return [0,0]
 
         motion = [0,0]
@@ -855,7 +855,7 @@ class playhead:
 
             # otherwise, see if it's a variable
             value = self.getvar(token)
-            if value == None:
+            if value is None:
                 return 0
             return value
 
@@ -911,7 +911,7 @@ class playhead:
             return self.parse_array_literal(token)
 
         value = self.getvar(token)
-        if value == None:
+        if value is None:
             result = []
             return result
         
@@ -929,7 +929,7 @@ class playhead:
             return self.string_rep(self.parse_array_literal(token))
 
         value = self.getvar(token)
-        if value == None:
+        if value is None:
             error("Runtime", "No such string", f"Variable {token} not found.", self)
             return 0
 
@@ -1125,7 +1125,7 @@ def cmd_getattribute(self, splitline, ph):
     
     value = obj.get(splitline[2])
 
-    if value == None:
+    if value is None:
         error("Runtime", "Attribute not found.", f"No such attribute in {obj.immut_id} ({obj.script_file}): {splitline[2]}",ph)
         ph.setvar(resultvar, 0)
     else:
@@ -1146,7 +1146,7 @@ def cmd_getglob(self, splitline, ph):
         resultvar = "_return"
 
     value = gobj.globs.get(splitline[1])
-    if value == None:
+    if value is None:
         error("Runtime", "Glob not found.", f"No such global variable: {splitline[2]}",ph)
         ph.setvar(resultvar, 0)
     else:
@@ -1163,7 +1163,7 @@ def cmd_log(self, splitline, ph):
     # to print variable values, just use their names
     for i in range(1, len(splitline)):
         value = ph.get_string(splitline[i])
-        if value == None:
+        if value is None:
             print(splitline[i], end=" ")
         else:
             print(value, end=" ")
@@ -1357,7 +1357,7 @@ def cmd_merge(self, splitline, ph):
 def cmd_append(self, splitline, ph):
     # add something or things to the end of a list
     # append mylist 5 6 7 10
-    if ph.getvar(splitline[1]) == None:
+    if ph.getvar(splitline[1]) is None:
         result = []
     else:
         result = ph.get_list(splitline[1])
@@ -1516,7 +1516,7 @@ def cmd_save(self, splitline, ph):
         # save an image from the object's canvas
         case 'canvas':
             contents = ph.parent_obj.canvas
-            if contents == None:
+            if contents is None :
                 error("Runtime", "Cannot save canvas.", "Object has no canvas.",ph)
                 return
 
@@ -1553,7 +1553,7 @@ def cmd_load(self, splitline, ph):
                 dim[0] = -1
             
             if splitline[3] == '_self':
-                if ph.parent_obj.canvas == None:
+                if ph.parent_obj.canvas is None:
                     error("Runtime", "Cannot load canvas.", "Object has no canvas.",ph)
                     return
                 # set the source image to be the canvas
@@ -1630,7 +1630,7 @@ def cmd_unload(self, splitline, ph):
                 gobj.fonts.pop(fontname)
 
 def cmd_setsprite(self, splitline, ph):
-    if self.parent_obj.render_surface == None:
+    if self.parent_obj.render_surface is None:
         width = ph.get_int('_width')
         height = ph.get_int('_height')
         self.parent_obj.render_surface = pygame.Surface((width,height)).convert_alpha()
@@ -1728,7 +1728,7 @@ def cmd_sound(self, splitline, ph):
 
 def cmd_setcollider(self, splitline, ph):
     # set the size of the collision box
-    if self.parent_obj.collision_rect == None:
+    if self.parent_obj.collision_rect is None:
         collider = pygame.Rect(0,0,0,0)
         self.parent_obj.collision_rect = collider
 
@@ -1753,7 +1753,7 @@ def cmd_collide(self, splitline, ph):
     if obj == 0:
         error("Runtime", "Invalid collision.", "No such object to collide.",ph)
         return
-    if obj.collision_rect == None:
+    if obj.collision_rect is None:
         error("Runtime", "Invalid collision.", "Object does not have a collider.",ph)
         return
     
@@ -1842,7 +1842,7 @@ def cmd_draw(self, splitline, ph):
     draw_obj:gobj = ph.get_gobj(splitline[1])
     if draw_obj == 0:
         return
-    if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
+    if draw_obj.canvas is None or list(draw_obj.canvas.get_size()) != gobj.resolution:
         # create a canvas that spans the screen
         draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
         draw_obj.canvas.fill(color=(0,0,0,0))
@@ -1976,7 +1976,7 @@ def cmd_stamp(self, splitline, ph):
         return
 
     # ex: stamp _self -> stamps _self gobj onto canvas. Just like Scratch's 'stamp' function
-    if draw_obj.canvas == None or list(draw_obj.canvas.get_size()) != gobj.resolution:
+    if draw_obj.canvas is None or list(draw_obj.canvas.get_size()) != gobj.resolution:
         # create a canvas that spans the screen
         draw_obj.canvas = pygame.Surface(gobj.resolution).convert_alpha()
         draw_obj.canvas.fill(color=(0,0,0,0))
@@ -2212,7 +2212,7 @@ class scriptsystem:
         if not scriptname in scriptsystem.scripts:
             loaded_script = self.loadscriptfile(scriptname)
 
-            if loaded_script == None:
+            if loaded_script is None:
                 sys.exit()
                 
             scriptsystem.scripts[scriptname] = loaded_script
@@ -2820,7 +2820,7 @@ class error:
 
     def __init__(self, err_type:str, label:str, info:str, playhead:playhead=None, obj_id:int=0, script:str="", pc_stack:list[int]=[], code="", hide_errors=False):
         
-        if playhead == None:
+        if playhead is None:
             self.err_type = err_type
             self.obj_id = obj_id
             self.script = script
@@ -2997,7 +2997,7 @@ keymap = {
 
 def addkey(key:str):
     keycode = keymap.get(key)
-    if keycode == None:
+    if keycode is None:
         print("Can't add key, name not recognized.")
         return
     
