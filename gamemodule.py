@@ -642,7 +642,7 @@ class playhead:
                     # Handle unary operators
 
                     if stacklen < 1:
-                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item}'.", self)
+                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
                     op1 = pop_op()
@@ -652,38 +652,37 @@ class playhead:
                         case 'not':
                             # Handle the unary 'not' operator
                             # If the item is equivalent to false, 'not' will set it to true, that is, 1. Otherwise it'll be set to 0.
-                            if not op1:
-                                result = 1
+                            result = not op1
                         case 'len':
                             # length of a string or list
                             try:
                                 result = len(op1)
                             except:
-                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be string or list.", self)
+                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item.op_name}' operator: must be string or list.", self)
                                 return 0
                         case 'lower':
                             try:
                                 result = op1.lower()
                             except:
-                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be a string.", self)
+                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item.op_name}' operator: must be a string.", self)
                                 return 0
                         case 'upper':
                             try:
                                 result = op1.upper()
                             except:
-                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be a string.", self)
+                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item.op_name}' operator: must be a string.", self)
                                 return 0
                         case 'abs':
                             try:
                                 result = abs(op1)
                             except:
-                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be numeric.", self)
+                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item.op_name}' operator: must be numeric.", self)
                                 return 0
                         case 'round':
                             try:
                                 result = round(op1)
                             except:
-                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be numeric.", self)
+                                error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item.op_name}' operator: must be numeric.", self)
                                 return 0
                         case 'int':
                             try:
@@ -703,7 +702,7 @@ class playhead:
                 elif op_class == 'trig':
 
                     if stacklen < 1:
-                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item}'.", self)
+                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
                     op1 = pop_op()
@@ -725,12 +724,12 @@ class playhead:
                             case 'arctan':
                                 result = math.atan(in_rads)
                     except:
-                        error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item}' operator: must be int or float.", self)   
+                        error("Runtime", "Evaluation error.", f"Invalid type '{type(op1)}' for '{item.op_name}' operator: must be int or float.", self)   
                         return 0  
                 else:
                     # All other operators require two operands
                     if stacklen < 2:
-                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item}'.", self)
+                        error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
                     op2 = pop_op()
@@ -759,12 +758,12 @@ class playhead:
                                 return 0
                             result = op1[op2]
                         except:
-                            error("Runtime", "Evaluation error.", f"Invalid types {type(op1)} and {type(op2)} for operator '{item}'. Expected 'list/string' and 'int'.", self)
+                            error("Runtime", "Evaluation error.", f"Invalid types {type(op1)} and {type(op2)} for operator '{item.op_name}'. Expected 'list/string' and 'int'.", self)
                             return 0
                     else:
                         # Lists are now invalid for any other thing
                         if type(op1) is list or type(op2) is list:
-                            error("Runtime", "Evaluation error.", f"Invalid type 'list' for operator '{item}'.", self)
+                            error("Runtime", "Evaluation error.", f"Invalid type 'list' for operator '{item.op_name}'.", self)
                             return 0
                         
                         has_strings = (type(op1) is str or type(op2) is str)
@@ -774,7 +773,7 @@ class playhead:
                         elif op_class == 'strnum':
                             #if not (type(op1) is str and type(op2) is str) and (type(op1) is str or type(op2) is str):
                             if has_strings:
-                                error("Runtime", "Evaluation error.", f"Incompatible types '{type(op1)}' and '{type(op2)}' for operator '{item}'.", self)
+                                error("Runtime", "Evaluation error.", f"Incompatible types '{type(op1)}' and '{type(op2)}' for operator '{item.op_name}'.", self)
                                 return 0
                             match op_name:
                                 case '+':
@@ -790,7 +789,7 @@ class playhead:
                         else:
                             # Strings are now invalid
                             if type(op1) is str or type(op2) is str:
-                                error("Runtime", "Evaluation error.", f"Invalid type 'string' for operator '{item}'.", self)
+                                error("Runtime", "Evaluation error.", f"Invalid type 'string' for operator '{item.op_name}'.", self)
                                 return 0
                             
                             if op_class == 'num':
@@ -808,7 +807,7 @@ class playhead:
                             else:
                                 # floats are now invalid
                                 if type(op1) is float or type(op2) is float:
-                                    error("Runtime", "Evaluation error.", f"Invalid type 'float' for operator '{item}'.", self)
+                                    error("Runtime", "Evaluation error.", f"Invalid type 'float' for operator '{item.op_name}'.", self)
                                     return 0
                                 
                                 match op_name:
@@ -832,7 +831,6 @@ class playhead:
                 stacklen += 1
 
         if stacklen != 1:
-            print(eval_stack)
             # Should have one element in it after running through entire list.
             error("Runtime", "Invalid expression.", f"Expression {expression} does not evaluate to a single answer.", self)
             return 0
@@ -2862,7 +2860,6 @@ class error:
         error.last_errs.append(self)
         if not self.hide_errors:
             self.print_err()
-            sys.exit()
 
         if self.err_type != "Load":
             gobj.trap_error(self.obj_id, self.label)
