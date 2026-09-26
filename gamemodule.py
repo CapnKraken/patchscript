@@ -594,6 +594,8 @@ def getpathname(givenpath:str, filetype:int):
 class identifier:
     def __init__(self, name):
         self.name = name
+    def __repr__(self):
+        return f"Id: {self.name}"
 
 # class to keep track of data for independently running scripts
 class playhead:
@@ -617,7 +619,7 @@ class playhead:
 
     # Evaluate a postfix (operators following operands) expression.
     def postfix_eval(self, expression:list):
-        eval_stack = []
+        eval_stack = [None] * len(expression)
         # In this scheme, '^' is power, '~' is xor.
         stacklen = 0
 
@@ -630,12 +632,12 @@ class playhead:
                 result = 0
                 if op_class == 'unary':
                     # Handle unary operators
-
+                        
                     if stacklen < 1:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
-                    op1 = eval_stack.pop()
+                    op1 = eval_stack[stacklen-1]
                     op1 = self.getvar(op1.name) if type(op1) is identifier else op1
                     stacklen -= 1
 
@@ -688,15 +690,14 @@ class playhead:
                                 error("Runtime", "Evaluation error.", f"Cannot convert '{op1}' type '{type(op1)}' to type 'float'.", self)
                                 return 0
                         case 'str':
-                            result = self.string_rep(op1)
-                                
+                            result = self.string_rep(op1)                             
                 elif op_class == 'trig':
 
                     if stacklen < 1:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
-                    op1 = eval_stack.pop()
+                    op1 = eval_stack[stacklen-1]
                     op1 = self.getvar(op1.name) if type(op1) is identifier else op1
                     stacklen -= 1
 
@@ -723,13 +724,13 @@ class playhead:
                     if stacklen < 2:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
-                    
-                    op2 = eval_stack.pop()
-                    op2 = self.getvar(op2.name) if type(op2) is identifier else op2
-                    op1 = eval_stack.pop()
-                    op1 = self.getvar(op1.name) if type(op1) is identifier else op1
-                    
+
+                    op2 = eval_stack[stacklen - 1]
+                    op1 = eval_stack[stacklen - 2]
                     stacklen -= 2
+
+                    op2 = self.getvar(op2.name) if type(op2) is identifier else op2
+                    op1 = self.getvar(op1.name) if type(op1) is identifier else op1
 
                     # Testing the operators ascending order of rigidity
                     if op_class == 'all':
@@ -803,7 +804,7 @@ class playhead:
                                 if type(op1) is float or type(op2) is float:
                                     error("Runtime", "Evaluation error.", f"Invalid type 'float' for operator '{item.op_name}'.", self)
                                     return 0
-                                
+
                                 match op_name:
                                     case '%':
                                         result = op1 % op2
@@ -816,12 +817,12 @@ class playhead:
                                     case '<<': # left shift
                                         result = op1 << op2
                                     case '>>': # right shift
-                                        result = op1 >> op2   
-                eval_stack.append(result)
+                                        result = op1 >> op2  
+                
+                eval_stack[stacklen] = result
                 stacklen += 1
-                            
             else:
-                eval_stack.append(item) # add an operand
+                eval_stack[stacklen] = item # add an operand
                 stacklen += 1
 
         if stacklen != 1:
@@ -2141,7 +2142,7 @@ for i, item in enumerate(keyword_names):
     keywords_dict[item] = i
 
 class Operator:
-    op_class:int
+    op_class:str
     op_name:str
     def __init__(self, op_name):
         self.op_name = op_name
@@ -2160,6 +2161,9 @@ class Operator:
                 self.op_class = 'num'
             case '%' | '&' | '|' | '~' | '<<' | '>>':
                 self.op_class = 'int'
+    def __repr__(self):
+        return f"Op: {self.op_name}"
+
 operator_list = "not len sin cos tan arcsin arccos arctan" \
 "lower upper abs round int float str and or == != ` + < > <= >= " \
 "- * / // ^ % & | ~ << >>".split()
