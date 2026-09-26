@@ -258,16 +258,13 @@ class gobj:
     # update the object's state and its childrens' states
     def obj_tick(self):
 
-        if gobj.globs['_paused'] and self.attributes['_ignore_pause'] == 0:
+        if gobj.globs['_paused'] and not self.attributes['_ignore_pause']:
             return
 
         self.scriptsys.script_tick()
 
         # remove inactive children
-        removal_indexes = []
-        for i, child in enumerate(self.children):
-            if child.is_dead:
-                removal_indexes.append(i)
+        removal_indexes = [i for i, child in enumerate(self.children) if child.is_dead]
         for index in reversed(removal_indexes):
             self.children.pop(index)
 
@@ -621,12 +618,6 @@ class playhead:
         eval_stack = []
         # In this scheme, '^' is power, '~' is xor.
         stacklen = 0
-        def pop_op():
-            op = eval_stack.pop()
-            result = op
-            if type(op) is identifier:
-                result = self.getvar(op.name)
-            return result
 
         for item in expression:
             if type(item) is Operator:
@@ -642,7 +633,8 @@ class playhead:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
-                    op1 = pop_op()
+                    op1 = eval_stack.pop()
+                    op1 = self.getvar(op1.name) if type(op1) is identifier else op1
                     stacklen -= 1
 
                     match op_name:
@@ -702,7 +694,8 @@ class playhead:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
-                    op1 = pop_op()
+                    op1 = eval_stack.pop()
+                    op1 = self.getvar(op1.name) if type(op1) is identifier else op1
                     stacklen -= 1
 
                     try:
@@ -729,8 +722,10 @@ class playhead:
                         error("Runtime", "Evaluation error.", f"Not enough operands for operator '{item.op_name}'.", self)
                         return 0
                     
-                    op2 = pop_op()
-                    op1 = pop_op()
+                    op2 = eval_stack.pop()
+                    op2 = self.getvar(op2.name) if type(op2) is identifier else op2
+                    op1 = eval_stack.pop()
+                    op1 = self.getvar(op1.name) if type(op1) is identifier else op1
                     
                     stacklen -= 2
 
@@ -893,8 +888,8 @@ class playhead:
         if len(token) < 2:
             error("Runtime", "Invalid array literal.", f"'{token}' is not a valid array literal.", self)
             return []
-        
-        if len(token[1:-1]) == 0:
+
+        if token == '[]':
             return []
 
         array = []
@@ -1103,7 +1098,7 @@ def cmd_setattribute(self, splitline, ph):
         add = 0
         obj = self.parent_obj
     
-    if obj == 0:
+    if not obj:
         return
 
     # set an attribute in the parent object
@@ -1118,7 +1113,7 @@ def cmd_getattribute(self, splitline, ph):
     else:
         resultvar = "_return"
 
-    if obj == 0:
+    if not obj:
         error("Runtime", "ID not found.", f"No such object referred to by {splitline[1]}",ph)
         ph.setvar(resultvar, 0)
         return
@@ -1750,10 +1745,10 @@ def cmd_setcollider(self, splitline, ph):
 
 def cmd_collide(self, splitline, ph):
     obj:gobj = ph.get_gobj(splitline[1])
-    if obj == 0:
+    if not obj:
         error("Runtime", "Invalid collision.", "No such object to collide.",ph)
         return
-    if obj.collision_rect is None:
+    if not obj.collision_rect:
         error("Runtime", "Invalid collision.", "Object does not have a collider.",ph)
         return
     
@@ -1840,7 +1835,7 @@ def cmd_stopall(self, splitline, ph):
 
 def cmd_draw(self, splitline, ph):
     draw_obj:gobj = ph.get_gobj(splitline[1])
-    if draw_obj == 0:
+    if not draw_obj:
         return
     if draw_obj.canvas is None or list(draw_obj.canvas.get_size()) != gobj.resolution:
         # create a canvas that spans the screen
@@ -1972,7 +1967,7 @@ def cmd_stamp(self, splitline, ph):
     else:
         obj = ph.parent_obj
 
-    if draw_obj == 0 or obj == 0:
+    if not (draw_obj and obj):
         return
 
     # ex: stamp _self -> stamps _self gobj onto canvas. Just like Scratch's 'stamp' function
@@ -2028,7 +2023,7 @@ def cmd_fork(self, splitline, ph):
 def cmd_adopt(self, splitline, ph):
     # Takes a child object from another object and adds it to its own child list. This cannot be done with the root object.
     obj:gobj = ph.get_gobj(splitline[1])
-    if obj == 0:
+    if not obj:
         error("Runtime", "Invalid Object", f"The object '{splitline[1]}' does not exist.", playhead=ph)
         return
     if obj.immut_id == 0:
@@ -2362,7 +2357,7 @@ class scriptsystem:
                     while i < len(strline):
                         char = strline[i]
                         if char == '(':
-                            if len(parse_stack) == 0 or parse_stack[-1][1] == '{':
+                            if not parse_stack or parse_stack[-1][1] == '{':
                                 parse_stack.append((i, '['))
                             else:
                                 parse_stack.append((0, '('))
@@ -2381,8 +2376,6 @@ class scriptsystem:
                                 addlines += 1
                                 strline = strline.replace(replace_string, expr_var, 1)
                                 i -= (expr_endpoints[1] - expr_endpoints[0])
-
-
                         elif char == '{':
                             parse_stack.append((i, '{'))
                         elif char == '}':
@@ -2403,7 +2396,6 @@ class scriptsystem:
                         i += 1
 
                 splitline = strline.split(' ')    
-
 
                 try:
                     # include, repeat, and endrepeat are not actual commands, but something like preprocessor directives (if you're a C guy). 
@@ -2445,7 +2437,7 @@ class scriptsystem:
                             addlines += 2
                         case 'endrepeat':
         
-                            if len(scope_stack) == 0:
+                            if not scope_stack:
                                 error("Load", "Floating endrepeat.", "", None, self.parent_obj.immut_id, self.parent_obj.script_file, [linenum], line)
                                 return
                             
@@ -2497,7 +2489,7 @@ class scriptsystem:
                             else:
                                 forever_waits = -1
                         case 'endwhile':
-                            if len(scope_stack) == 0:
+                            if not scope_stack:
                                 error("Load", "Floating endwhile.", "", None, self.parent_obj.immut_id, self.parent_obj.script_file, [linenum], line)
                                 return
                             
@@ -2569,7 +2561,7 @@ class scriptsystem:
 
                             scope_stack[-1] = -1
                         case 'endif':
-                            if len(scope_stack) == 0:
+                            if not scope_stack:
                                 error("Load", "Floating endif.", "", None, self.parent_obj.immut_id, self.parent_obj.script_file, [linenum], line)
                                 return
 
@@ -2734,7 +2726,7 @@ class scriptsystem:
                 ph.wait_timer -= 1
 
             # process lines until a wait is reached or the script ends
-            while ph.wait_timer == 0 and ph.is_running:
+            while not ph.wait_timer and ph.is_running:
 
                 line_no = ph.pc_stack[ph.stacklen]
 
@@ -3138,7 +3130,7 @@ def tokenize(expr:str) -> list[str]:
             cur_token += char
             if char == ']':
                 in_raw_array -= 1
-                if in_raw_array == 0:
+                if not in_raw_array:
                     tokens.append(cur_token)
                     cur_token = ""
             if char == '[':
@@ -3205,7 +3197,7 @@ def shunting_yard(tokens:list[str]):
     output_list = []
     for i, item in enumerate(tokens):
         if item in operators:
-            if item == '-' and (len(output_list) == 0 or tokens[i-1] == '(' or tokens[i-1] in operators):
+            if item == '-' and (not output_list or tokens[i-1] == '(' or tokens[i-1] in operators):
                 # Handle unary minus
                 if i+1 < len(tokens) and checknumeric(tokens[i+1]):
                     # Treat negative numbers as numeric literals
@@ -3216,20 +3208,20 @@ def shunting_yard(tokens:list[str]):
                 output_list.append('0')
                 item = "_"
 
-            if len(op_stack) == 0 or op_stack[-1] == '(':
+            if not op_stack or op_stack[-1] == '(':
                 op_stack.append(item)
             else:
                 current_symbol = item
                 
                 current_precedence = find_precedence(current_symbol)
                 top_precedence = find_precedence(op_stack[-1])
-                if (current_precedence > top_precedence) or (current_precedence == top_precedence and item in right_associative_ops) or len(op_stack) == 0 or op_stack[-1] == '(':
+                if (current_precedence > top_precedence) or (current_precedence == top_precedence and item in right_associative_ops) or not op_stack or op_stack[-1] == '(':
                     op_stack.append(item)
                 else:
                     while (current_precedence < top_precedence) or (current_precedence == top_precedence and item not in right_associative_ops) and op_stack[-1] != "(":
                         output_list.append(op_stack.pop())
                         current_symbol = item
-                        if len(op_stack) == 0:
+                        if not op_stack:
                             top_precedence = -1
                         else:
                             top_precedence = find_precedence(op_stack[-1])
