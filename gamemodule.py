@@ -626,9 +626,6 @@ class playhead:
             result = op
             if type(op) is identifier:
                 result = self.getvar(op.name)
-            elif type(op) is str and len(op) > 0:
-                if op[0] == '[':
-                    result = self.parse_array_literal(op)
             return result
 
         for item in expression:
@@ -2763,7 +2760,7 @@ class scriptsystem:
         for ph in ph_deletions:
             self.playheads.remove(ph)
 
-    def pre_parse_eval(self, splitline:list, is_jump=False):
+    def pre_parse_eval(self, splitline:list, ph:playhead, is_jump=False):
         break_point = 2
         if is_jump:
             break_point = 3
@@ -2777,8 +2774,7 @@ class scriptsystem:
                 if item[0] == '"':
                     result = item.strip('"')
                 elif item[0] == '[':
-                    # TODO can't preparse array lit yet, need identifiers
-                    result = item
+                    result = ph.parse_array_literal(item)
                 elif item in operator_list:
                     result = operator_dict[item]
                 else:
@@ -2800,9 +2796,9 @@ class scriptsystem:
             if firstword != None:
                 splitline[0] = firstword
                 if firstword == commands_dict['eval']:
-                    splitline = self.pre_parse_eval(splitline)
+                    splitline = self.pre_parse_eval(splitline, ph)
                 elif firstword == commands_dict['jump']:
-                    splitline = self.pre_parse_eval(splitline, True)
+                    splitline = self.pre_parse_eval(splitline, ph, True)
             else:
                 # function call is last command in list
                 splitline.insert(0, -1)
