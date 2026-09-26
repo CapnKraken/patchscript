@@ -204,13 +204,13 @@ class gobj:
 
     # Test the values of certain variables to determine if you need to update transformations     
     def test_transformations(self):
-        x = self.get('_x')
-        y = self.get('_y')
-        rot = self.get('_rotation')
-        fh = self.get('_fliph')
-        fv = self.get('_flipv')
-        w = self.get('_width')
-        h = self.get('_height')
+        x = self.attributes['_x']
+        y = self.attributes['_y']
+        rot = self.attributes['_rotation']
+        fh = self.attributes['_fliph']
+        fv = self.attributes['_flipv']
+        w = self.attributes['_width']
+        h = self.attributes['_height']
         
         self.update_position = x != self.prev_x or y != self.prev_y
         self.update_rotation = rot != self.prev_rot
@@ -271,12 +271,14 @@ class gobj:
         # update transformations
         transforms = self.test_transformations()
 
+        atts = self.attributes
+
         update_transform = False
         if self.update_rotation:
             update_transform = True
             # update matrix here
-            if self.get('_transform_children'):
-                angle = math.radians(self.get('_rotation'))
+            if atts['_transform_children']:
+                angle = math.radians(atts['_rotation'])
                 self.rotation_matrix = [
                     math.cos(angle), -math.sin(angle),
                     math.sin(angle), math.cos(angle)
@@ -287,14 +289,14 @@ class gobj:
             update_transform = True
             
         if update_transform and self.has_sprite:
-            spr = self.get('_sprite')
-            fliph = self.get('_fliph')
-            flipv = self.get('_flipv')
-            rot = self.get('_rotation')
+            spr = atts['_sprite']
+            fliph = atts['_fliph']
+            flipv = atts['_flipv']
+            rot = atts['_rotation']
 
             if self.update_scale or self.abnormal_scale or (self.abnormal_scale and self.update_rotation):
-                width = self.get('_width')
-                height = self.get('_height')
+                width = atts['_width']
+                height = atts['_height']
                 self.setsprite(spr, fliph, flipv, rot, self.new_color_shift, width, height)
             else:
                 self.setsprite(spr, fliph, flipv, rot, self.new_color_shift)
@@ -304,20 +306,20 @@ class gobj:
         for child in self.children:
             child_pos = [child.get_numeric_coordinate('_x'), child.get_numeric_coordinate('_y')]
             
-            if self.get('_transform_children'):
+            if atts['_transform_children']:
                 if self.update_rotation:
-                    child.set('_rotation', child.get('_rotation')+transforms['r'])
+                    child.set('_rotation', child.attributes['_rotation']+transforms['r'])
                 if self.update_flip:
                     if transforms['fh']:
-                        child.set('_fliph', int(not child.get('_fliph')))
+                        child.set('_fliph', int(not child.attributes['_fliph']))
                     if transforms['fv']:
-                        child.set('_flipv', int(not child.get('_flipv')))
-                if self.get('_fliph'):
+                        child.set('_flipv', int(not child.attributes['_flipv']))
+                if atts['_fliph']:
                     child_pos[0] *= -1
-                if self.get('_flipv'):
+                if atts['_flipv']:
                     child_pos[1] *= -1
 
-                if self.get('_rotation'):
+                if atts['_rotation']:
                     x = child_pos[0]
                     y = child_pos[1]
                     a = self.rotation_matrix[0]
@@ -523,7 +525,7 @@ class gobj:
     
     def playsound(self, sound):
         s:tuple[pygame.mixer.Sound, int] = gobj.sounds.get(sound)
-        s[0].set_volume(gobj.globs.get('_sfx_vol')/100)
+        s[0].set_volume(gobj.globs['_sfx_vol']/100)
         if s:
             s[0].play(maxtime=s[1])
     
@@ -827,8 +829,6 @@ class playhead:
             error("Runtime", "Invalid expression.", f"Expression {expression} does not evaluate to a single answer.", self)
             return 0
         else:
-            if type(eval_stack[0]) is str:
-                return eval_stack[0].strip('"')
             return eval_stack[0]
     
     def get_any(self, token):
@@ -954,7 +954,6 @@ class playhead:
             # if it's already an int
             return int(token)
         except:
-
             try:
                 result = int(self.getvar(token))
                 return result
@@ -970,7 +969,6 @@ class playhead:
             result = float(token)
             return int(result) if result.is_integer() else result
         except:
-
             try:
                 result = float(self.getvar(token))
                 return int(result) if result.is_integer() else result
@@ -1662,7 +1660,7 @@ def cmd_setsprite(self, splitline, ph):
                 return
 
 def cmd_updatesprite(self, splitline, ph):
-    spritename = self.parent_obj.get('_sprite')
+    spritename = self.parent_obj.attributes['_sprite']
     fliph = ph.get_int('_fliph')
     flipv = ph.get_int('_flipv')
     rot = ph.get_int('_rotation')
@@ -1902,7 +1900,7 @@ def cmd_draw(self, splitline, ph):
             c1 = [ph.get_int(splitline[3]) + draw_position[0], ph.get_int(splitline[4]) + draw_position[1]]
             c2 = [ph.get_int(splitline[5]) + draw_position[0], ph.get_int(splitline[6]) + draw_position[1]]
 
-            if self.parent_obj.get('_draw_antialiased') == 1:
+            if self.parent_obj.attributes['_draw_antialiased']:
                 pygame.draw.aaline(draw_obj.canvas, color, c1, c2, stroke_width)
             else:
                 pygame.draw.line(draw_obj.canvas, color, c1, c2, stroke_width)
@@ -1915,7 +1913,7 @@ def cmd_draw(self, splitline, ph):
 
             text_obj = pygame.font.Font(current_font, stroke_width)
             text = ph.get_string(splitline[3])
-            text_surf = text_obj.render(text, self.parent_obj.get('_draw_antialiased')==1, color)
+            text_surf = text_obj.render(text, self.parent_obj.attributes['_draw_antialiased'], color)
             if len(color) == 4:
                 text_surf.set_alpha(color[3])
             draw_size = text_surf.get_size()
