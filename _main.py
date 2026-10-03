@@ -193,7 +193,7 @@ def adjust_mouse_pos(m_pos, win_size, screen_res):
 
 import pstats
 
-do_profiling = True
+do_profiling = False
 
 if do_profiling:
     with cProfile.Profile() as pr:
